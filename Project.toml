@@ -1,0 +1,13 @@
+name = "GridapFSI"
+uuid = "993ed92c-5081-4ac1-a6f6-94a4e90850e2"
+authors = ["Oriol Colomes"]
+version = "0.1.0"
+
+[compat]
+julia = "1.1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
