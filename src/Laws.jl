@@ -12,11 +12,23 @@
 
 # Solid laws
 @law E(∇u) = 0.5 * ((F(∇u)')⋅F(∇u) - one(F(∇u)))
-#@law S(λ,μ,∇u) = 2*μ*E(∇u) + λ*tr(E(∇u))*one(E(∇u))
-@law S(∇u) = 2*0.5e6*E(∇u) + 2.0e6*tr(E(∇u))*one(E(∇u))
 @law dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
+#@law S(λ,μ,∇u) = 2*μ*E(∇u) + λ*tr(E(∇u))*one(E(∇u))
+@law S_SV(∇u) = 2*0.5e6*E(∇u) + 2.0e6*tr(E(∇u))*one(E(∇u))
 #@law dS(λ,μ,∇u,∇du) = 2*μ*dE(∇u,∇du) + λ*tr(dE(∇u,∇du))*one(E(∇u))
-@law dS(∇u,∇du) = 2*0.5e6*dE(∇u,∇du) + 2.0e6*tr(dE(∇u,∇du))*one(E(∇u))
+@law dS_SV(∇u,∇du) = 2*0.5e6*dE(∇u,∇du) + 2.0e6*tr(dE(∇u,∇du))*one(E(∇u))
+C(F) = (F')⋅F
+@law function S_NH(∇u)
+    (λ,μ) = lame_parameters(1.0e-10,0.49)
+    Cinv = inv(C(F(∇u)))
+    μ*(one(∇u)-Cinv) + λ*log(J(F(∇u)))*Cinv
+end
+@law function dS_NH(∇du,∇u)
+    (λ,μ) = lame_parameters(1.0e-10,0.49)
+    Cinv = inv(C(F(∇u)))
+    _dE = dE(∇du,∇u)
+	  λ*(Cinv⊙_dE)*Cinv + 2*(μ-λ*log(J(F(∇u))))*Cinv⋅_dE⋅(Cinv')
+end
 
 # Maps
 @law F(∇u) = ∇u + one(∇u)

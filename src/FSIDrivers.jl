@@ -9,7 +9,6 @@ using GridapFSI.WeakForms
 using TimerOutputs
 using WriteVTK
 using LineSearches: BackTracking, HagerZhang
-using LinearAlgebra: tr, inv, det
 
 import GridapODEs.TransientFETools: ∂t
 
@@ -17,7 +16,6 @@ export Problem
 export execute
 
 struct Problem{Kind} end
-struct MeshStrategy{Kind} end
 
 ### This is temporary. Need a better solution!!! ###
 global u_in(x, t) = VectorValue(1.5 * 1.0 * x[2] * (0.41 - x[2]) / ((0.41 / 2)^2), 0.0)#VectorValue(0.0, 0.0)
