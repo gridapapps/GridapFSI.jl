@@ -36,6 +36,8 @@ execute(problem::Problem; kwargs...) = @notimplemented("The driver for problem: 
 function writePVD(filePath::String, trian::Triangulation, sol; append=false)
     outfiles = paraview_collection(filePath, append=append) do pvd
         for (i, (xh, t)) in enumerate(sol)
+            println("STEP: $i, TIME: $t")
+            println("============================")
             uh = restrict(xh.blocks[1],trian)
             vh = restrict(xh.blocks[2],trian)
 						ph = restrict(xh.blocks[3],trian)

@@ -57,19 +57,17 @@ function a_uvp_ϕ_Ωf(strategy::MeshStrategy{:neoHookean},x,y,E,ν)
     (λ_m,μ_m) = lame_parameters(E,ν)
     (dE(∇(ϕ),∇(u)) ⊙ S_NH(∇(u)))
 end
-function a_wuvp_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,y)
+function a_wuvp_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
-    α = 1.0e-10
-    α*(ψ⋅w) + α*(∇(ψ) ⊙ ∇(u))
-    #α*(ψ⋅w) #+ α*(∇(ψ) ⊙ ∇(u))
+    α = 1.0e-8
+    vol*α*(ψ⋅w) + α*(∇(ψ) ⊙ ∇(u))
 end
-function a_wuvp_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,y)
+function a_wuvp_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
-    α = 1.0e-10
-    α*(∇(ϕ) ⊙ ∇(w))
-    #α*(∇(ϕ) ⊙ ∇(u))
+    α = 1.0e-8
+    vol*α*(∇(ϕ) ⊙ ∇(w))
 end
 function a_uvp_φ_Ωf(x, xt, y, μ, ρ)
     u, v, p = x
@@ -114,18 +112,17 @@ function a_uvp_ϕ_Γi(strategy::MeshStrategy{:neoHookean},x,y,n,E,ν)
     (λ_m,μ_m) = lame_parameters(E,ν)
     - (ϕ ⋅  (n⋅S_NH(∇(u))) )
 end
-function a_wuvp_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n)
+function a_wuvp_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
-    α = 1.0e-10
-    - α * (ψ ⋅  (n⋅∇(u)))
+    α = 1.0e-8
+    - vol * α * (ψ ⋅  (n⋅∇(u)))
 end
-function a_wuvp_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n)
+function a_wuvp_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
-    α = 1.0e-10
-    - α * (ϕ ⋅  (n⋅∇(w)))
-    #- α * (ϕ ⋅  (n⋅∇(u)))
+    α = 1.0e-8
+    - vol * α * (ϕ ⋅  (n⋅∇(w)))
 end
 
 # Jacobians
@@ -243,12 +240,12 @@ function da_uvp_du_ϕ_Γi(strategy::MeshStrategy{:neoHookean},x,dx,y, n, E, ν)
     - (ϕ ⋅  (n⋅dS_NH(∇(du),∇(u))) )
 end
 
-fsi_uvp_residual_Ωf(strategy::MeshStrategy,x,xt,y,μ,ρ,E,ν) = 
+fsi_uvp_residual_Ωf(strategy::MeshStrategy,x,xt,y,μ,ρ,E,ν,vol) = 
     a_uvp_ϕ_Ωf(strategy,x,y,E,ν) +
     a_uvp_φ_Ωf(x,xt,y,μ,ρ) +
     a_uvp_q_Ωf(x, y)
 
-fsi_uvp_jacobian_Ωf(strategy::MeshStrategy,x,xt,dx,y,μ,ρ,E,ν) = 
+fsi_uvp_jacobian_Ωf(strategy::MeshStrategy,x,xt,dx,y,μ,ρ,E,ν,vol) = 
     da_uvp_du_ϕ_Ωf(strategy,x,dx,y,E,ν) +
     da_uvp_du_φ_Ωf(x,xt,dx,y,μ,ρ) +
     da_uvp_dv_φ_Ωf(x,xt,dx,y,μ,ρ) +
@@ -260,23 +257,23 @@ fsi_uvp_jacobian_t_Ωf(strategy::MeshStrategy,x,xt,dxt,y,ρ) =
     da_uvp_dut_φ_Ωf(x,dxt,y,ρ) +
     da_uvp_dvt_φ_Ωf(x,dxt,y,ρ)
 
-function fsi_uvp_residual_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,y,μ,ρ,E,ν)
+function fsi_uvp_residual_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,y,μ,ρ,E,ν,vol)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     ψ, ϕ, φ, q = y
-    a_wuvp_ψ_Ωf(strategy,x,y) +
-    a_wuvp_ϕ_Ωf(strategy,x,y) +
+    a_wuvp_ψ_Ωf(strategy,x,y,vol) +
+    a_wuvp_ϕ_Ωf(strategy,x,y,vol) +
     a_uvp_φ_Ωf([u,v,p],[ut,vt,pt],[ϕ,φ,q],μ,ρ) +
     a_uvp_q_Ωf([u,v,p],[ϕ,φ,q])
 end
 
-function fsi_uvp_jacobian_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,μ,ρ,E,ν)
+function fsi_uvp_jacobian_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,μ,ρ,E,ν,vol)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     dw, du, dv, dp = dx
     ψ, ϕ, φ, q = y
-    a_wuvp_ψ_Ωf(strategy,dx,y) +
-    a_wuvp_ϕ_Ωf(strategy,dx,y) +
+    a_wuvp_ψ_Ωf(strategy,dx,y,vol) +
+    a_wuvp_ϕ_Ωf(strategy,dx,y,vol) +
     da_uvp_du_φ_Ωf([u,v,p],[ut,vt,pt],[du,dv,dp],[ϕ,φ,q],μ,ρ) +
     da_uvp_dv_φ_Ωf([u,v,p],[ut,vt,pt],[du,dv,dp],[ϕ,φ,q],μ,ρ) +
     da_uvp_dp_φ_Ωf([u,v,p],[du,dv,dp],[ϕ,φ,q]) +
@@ -292,31 +289,31 @@ function fsi_uvp_jacobian_t_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,�
     da_uvp_dvt_φ_Ωf([u,v,p],[dut,dvt,dpt],[ϕ,φ,q],ρ)
 end
 
-fsi_uvp_residual_Ωs(strategy::MeshStrategy,x,xt,y,ρ,E,ν) =
+fsi_uvp_residual_Ωs(strategy::MeshStrategy,x,xt,y,ρ,E,ν,vol) =
     a_uvp_ϕ_Ωs(x,xt,y) +
     a_uvp_φ_Ωs(x,xt,y,ρ,E,ν)
 
-fsi_uvp_jacobian_Ωs(strategy::MeshStrategy,x,xt,dx,y,ρ,E,ν) =
+fsi_uvp_jacobian_Ωs(strategy::MeshStrategy,x,xt,dx,y,ρ,E,ν,vol) =
     da_uvp_dx_ϕ_Ωs(x,dx,y) +
     da_uvp_dx_φ_Ωs(x,dx,y,ρ,E,ν) 
 
 fsi_uvp_jacobian_t_Ωs(strategy::MeshStrategy,x,xt,dxt,y,ρ) =
     da_uvp_dxt_Ωs(x,dxt,y,ρ)
 
-function fsi_uvp_residual_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,y,ρ,E,ν)
+function fsi_uvp_residual_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,y,ρ,E,ν,vol)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     ψ, ϕ, φ, q = y
-    a_wuvp_ψ_Ωf(strategy,x,y) +
+    a_wuvp_ψ_Ωf(strategy,x,y,vol) +
     a_uvp_ϕ_Ωs([u,v,p],[ut,vt,pt],[ϕ,φ,q]) +
     a_uvp_φ_Ωs([u,v,p],[ut,vt,pt],[ϕ,φ,q],ρ,E,ν)
 end
 
-function fsi_uvp_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,ρ,E,ν)
+function fsi_uvp_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,ρ,E,ν,vol)
     w, u, v, p = x
     dw, du, dv, dp = dx
     ψ, ϕ, φ, q = y
-    a_wuvp_ψ_Ωf(strategy,dx,y) +
+    a_wuvp_ψ_Ωf(strategy,dx,y,vol) +
     da_uvp_dx_ϕ_Ωs([u,v,p],[du,dv,dp],[ϕ,φ,q]) +
     da_uvp_dx_φ_Ωs([u,v,p],[du,dv,dp],[ϕ,φ,q],ρ,E,ν)
 end
@@ -328,10 +325,10 @@ function fsi_uvp_jacobian_t_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,�
     da_uvp_dxt_Ωs([u,v,p],[dut,dvt,dpt],[ϕ,φ,q],ρ)
 end
 
-fsi_uvp_residual_Γi(strategy::MeshStrategy,x,y,n,E,ν) = a_uvp_ϕ_Γi(strategy,x,y,n,E,ν)
-fsi_uvp_jacobian_Γi(strategy::MeshStrategy,x,dx,y,n,E,ν) = da_uvp_du_ϕ_Γi(strategy,x,dx,y,n,E,ν)
-fsi_uvp_residual_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,E,ν) = a_wuvp_ψ_Γi(strategy,x,y,n) + a_wuvp_ϕ_Γi(strategy,x,y,n)
-fsi_uvp_jacobian_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,E,ν) = a_wuvp_ψ_Γi(strategy,dx,y,n) + a_wuvp_ϕ_Γi(strategy,dx,y,n)
+fsi_uvp_residual_Γi(strategy::MeshStrategy,x,y,n,E,ν,vol) = a_uvp_ϕ_Γi(strategy,x,y,n,E,ν)
+fsi_uvp_jacobian_Γi(strategy::MeshStrategy,x,dx,y,n,E,ν,vol) = da_uvp_du_ϕ_Γi(strategy,x,dx,y,n,E,ν)
+fsi_uvp_residual_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,E,ν,vol) = a_wuvp_ϕ_Γi(strategy,x,y,n,vol)#a_wuvp_ψ_Γi(strategy,x,y,n,vol) + a_wuvp_ϕ_Γi(strategy,x,y,n,vol)
+fsi_uvp_jacobian_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,E,ν,vol) = a_wuvp_ϕ_Γi(strategy,dx,y,n,vol)#a_wuvp_ψ_Γi(strategy,dx,y,n,vol) + a_wuvp_ϕ_Γi(strategy,dx,y,n,vol)
 
 end
 
