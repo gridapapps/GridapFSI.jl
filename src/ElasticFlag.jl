@@ -62,6 +62,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     vol_Γi = reindex(volf,trian_Γi)
 
     # Quadratures
+
     println("Defining quadratures")
     order = _get_kwarg(:order,kwargs,2)
     degree = 2*order
@@ -76,25 +77,40 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Stokes problem for initial solution
     println("Defining Stokes operator")
-    res_ST(x,y) = WeakForms.stokes_uvp_residual(strategy,x,y,μ_f)
-    jac_ST(x,dx,y) = WeakForms.stokes_uvp_residual(strategy,dx,y,μ_f)
+    res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f)
+    jac_ST(x,dx,y) = WeakForms.stokes_residual(strategy,dx,y,μ_f)
     t_ST_Ωf = FETerm(res_ST, jac_ST, trian_fluid, quad_fluid)
     op_ST = FEOperator(X_ST,Y_ST,t_ST_Ωf)
 
+    # Setup equation parameters
+    fsi_f_params = Dict("μ"=>μ_f,
+                        "ρ"=>ρ_f,
+                        "E"=>E_m,
+                        "ν"=>ν_m,
+                        "vol"=>vol_fluid)
+    fsi_s_params = Dict("ρ"=>ρ_s,
+                        "E"=>E_s,
+                        "ν"=>ν_s,
+                        "vol"=>vol_solid)
+    fsi_Γi_params = Dict("n"=>n_Γi,
+                         "E"=>E_m,
+                         "ν"=>ν_m,
+                         "vol"=>vol_Γi)
+
     # FSI problem
     println("Defining FSI operator")
-    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_uvp_residual_Ωf(strategy,x,xt,y,μ_f,ρ_f,E_m,ν_m,vol_fluid)
-    jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_uvp_jacobian_Ωf(strategy,x,xt,dx,y,μ_f,ρ_f,E_m,ν_m,vol_fluid)
-    jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_uvp_jacobian_t_Ωf(strategy,x,xt,dxt,y,ρ_f)
-    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_uvp_residual_Ωs(strategy,x,xt,y,ρ_s,E_s,ν_s,vol_solid)
-    jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_uvp_jacobian_Ωs(strategy,x,xt,dx,y,ρ_s,E_s,ν_s,vol_solid)
-    jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_uvp_jacobian_t_Ωs(strategy,x,xt,dxt,y,ρ_s)
-    res_FSI_Γi(x,y) = WeakForms.fsi_uvp_residual_Γi(strategy,x,y,n_Γi,E_m,ν_m,vol_fluid)
-    jac_FSI_Γi(x,dx,y) = WeakForms.fsi_uvp_jacobian_Γi(strategy,x,dx,y,n_Γi,E_m,ν_m,vol_fluid)
+    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,x,xt,y,fsi_f_params)
+    jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,x,xt,dx,y,fsi_f_params)
+    jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,fsi_f_params)
+    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,x,xt,y,fsi_s_params)
+    jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,x,xt,dx,y,fsi_s_params)
+    jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,fsi_s_params)
+    res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,x,y,fsi_Γi_params)
+    jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,x,dx,y,fsi_Γi_params)
     t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, trian_fluid, quad_fluid)
     t_FSI_Ωs = FETerm(res_FSI_Ωs, jac_FSI_Ωs, jac_t_FSI_Ωs, trian_solid, quad_solid)
     t_FSI_Γi = FETerm(res_FSI_Γi,jac_FSI_Γi,trian_Γi,quad_Γi)
-    op_FSI = TransientFEOperator(X_FSI,Y_FSI,t_FSI_Ωf,t_FSI_Ωs)#,t_FSI_Γi)
+    op_FSI = TransientFEOperator(X_FSI,Y_FSI,t_FSI_Ωf,t_FSI_Ωs,t_FSI_Γi)
 
     # Setup output files
     folderName = "fsi-results"
@@ -202,7 +218,7 @@ function get_FE_spaces(strategy::WeakForms.MeshStrategy{:linearElasticity},model
     Uu_FSI = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_values])
     Uv_FSI = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_values])
     P = TrialFESpace(Q)
-    
+
     # Multifield FE Spaces
     fe_spaces = (
         Y_ST = MultiFieldFESpace([Vu_ST,Vv_ST,Q]),
@@ -280,7 +296,7 @@ function get_FE_spaces(strategy::WeakForms.MeshStrategy{:biharmonic},model,model
     Uu_FSI = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_values])
     Uv_FSI = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_values])
     P = TrialFESpace(Q)
-    
+
     # Multifield FE Spaces
     fe_spaces = (
         Y_ST = MultiFieldFESpace([Vw_ST,Vu_ST,Vv_ST,Q]),

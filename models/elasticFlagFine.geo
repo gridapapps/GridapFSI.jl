@@ -10,11 +10,11 @@ BooleanDifference{ Surface{3}; Delete; }{ Surface{2}; Delete;}
 Coherence;
 
 // Define mesh sizes
-Transfinite Curve {16, 15} = 2 Using Progression 1;
+Transfinite Curve {16, 15} = 3 Using Progression 1;
 Transfinite Curve {7} = 4 Using Progression 1;
-Transfinite Curve {12} = 30 Using Progression 1;
-Transfinite Curve {13} = 30 Using Progression 0.99;
-Transfinite Curve {14} = 30 Using Progression 1.01;
+Transfinite Curve {12} = 60 Using Progression 1;
+Transfinite Curve {13} = 60 Using Progression 1;
+Transfinite Curve {14} = 60 Using Progression 1;
 Transfinite Curve {9} = 20 Using Progression 1;
 Transfinite Curve {10} = 15 Using Progression 1;
 Transfinite Curve {11, 8} = 100 Using Progression 1;

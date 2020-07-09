@@ -5,9 +5,9 @@
 @law dconv(dc,∇dv,c,∇v) = conv(c,∇dv) + conv(dc,∇v)
 
 # Mesh laws
-@law α_m(J) = 1.0e-6 # 1.0e-6 / J
+@law α_m(J) = 1.0e-6 / J
 @law σ_m(λ,μ,ε) = λ*tr(ε)*one(ε) + 2.0*μ*ε
-@law dα_m(J,dJ) = 0.0 #- 1.0e-6 * 2.0 / (J*J*J) * dJ
+@law dα_m(J,dJ) = - 1.0e-6 * 1.0 / (J*J) * dJ
 @law dσ_m(λ,dλ,μ,dμ,ε,dε) = σ_m(λ,μ,dε) + σ_m(dλ,dμ,ε)
 
 # Solid laws
