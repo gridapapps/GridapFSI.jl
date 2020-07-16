@@ -1,6 +1,5 @@
 function execute(problem::Problem{:elasticFlag}; kwargs...)
 
-
     # Problem setting (Default FSI-2)
     println("Setting Elastic flag problem parameters")
     Um = _get_kwarg(:Um,kwargs,1.0)
@@ -29,15 +28,17 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     # Define BC functions
     println("Defining Boundary conditions")
 
-    #u_in(x, t) = VectorValue(1.5 * Um * x[2] * (H - x[2]) / ((H / 2)^2), 0.0)
-    #u_noSlip(x, t) = VectorValue(0.0, 0.0)
-    #ut_in(t::Real) = x -> u_in(x, t)
-    #ut_noSlip(t::Real) = x -> u_noSlip(x, t)
-    #∂tu_in(t) = x -> VectorValue(0.0, 0.0)
-    #∂tu_in(x, t) = ∂tu_in(t)(x)
-    #∂t(::typeof(ut_in)) = ∂tu_in
-    #∂t(::typeof(ut_noSlip)) = ∂tu_in
-    bconds = get_boundary_conditions(strategy,ut_in,ut_noSlip)
+    u_in(x, t) = VectorValue(1.5 * Um * x[2] * (H - x[2]) / ((H / 2)^2), 0.0)
+    u_noSlip(x, t) = VectorValue(0.0, 0.0)
+    u_in(t::Real) = x -> u_in(x, t)
+    u_noSlip(t::Real) = x -> u_noSlip(x, t)
+    ∂tu_in(t) = x -> VectorValue(0.0, 0.0)
+    ∂tu_in(x, t) = ∂tu_in(t)(x)
+    T_in = typeof(u_in)
+    T_noSlip = typeof(u_noSlip)
+    @eval ∂t(::$T_in) = $∂tu_in
+    @eval ∂t(::$T_noSlip) = $∂tu_in
+    bconds = get_boundary_conditions(problem,strategy,u_in,u_noSlip)
 
     # Discrete model
     println("Defining discrete model")
@@ -62,7 +63,6 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     vol_Γi = reindex(volf,trian_Γi)
 
     # Quadratures
-
     println("Defining quadratures")
     order = _get_kwarg(:order,kwargs,2)
     degree = 2*order
@@ -73,7 +73,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Test FE Spaces
     println("Defining FE spaces")
-    Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,model,model_fluid,order,bconds)
+    Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(problem,strategy,model,model_fluid,order,bconds)
 
     # Stokes problem for initial solution
     println("Defining Stokes operator")
@@ -149,7 +149,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
 end
 
-function get_boundary_conditions(strategy::WeakForms.MeshStrategy{:linearElasticity},u_in,u_noSlip)
+function get_boundary_conditions(problem::Problem{:elasticFlag},strategy::WeakForms.MeshStrategy,u_in,u_noSlip)
     boundary_conditions = (
         # Tags
         FSI_Vu_tags = ["inlet", "noSlip", "cylinder","fixed","outlet"],
@@ -163,16 +163,8 @@ function get_boundary_conditions(strategy::WeakForms.MeshStrategy{:linearElastic
         ST_Vv_values = [u_in(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
     )
 end
-function get_boundary_conditions(strategy::WeakForms.MeshStrategy{:neoHookean},u_in,u_noSlip)
-    _strategy = WeakForms.MeshStrategy{:linearElasticity}()
-    get_boundary_conditions(_strategy,u_in,u_noSlip)
-end
-function get_boundary_conditions(strategy::WeakForms.MeshStrategy{:biharmonic},u_in,u_noSlip)
-    _strategy = WeakForms.MeshStrategy{:linearElasticity}()
-    get_boundary_conditions(_strategy,u_in,u_noSlip)
-end
 
-function get_FE_spaces(strategy::WeakForms.MeshStrategy{:linearElasticity},model,model_fluid,order,bconds)
+function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy,model,model_fluid,order,bconds)
     Vu_FSI = TestFESpace(
         model=model,
         valuetype=VectorValue{2,Float64},
@@ -200,7 +192,6 @@ function get_FE_spaces(strategy::WeakForms.MeshStrategy{:linearElasticity},model
 		    #model=model,
         valuetype=VectorValue{2,Float64},
         reffe=:Lagrangian,
-
         order=order,
         conformity =:H1,
         dirichlet_tags=bconds[:ST_Vv_tags])
@@ -228,12 +219,7 @@ function get_FE_spaces(strategy::WeakForms.MeshStrategy{:linearElasticity},model
     )
 end
 
-function get_FE_spaces(strategy::WeakForms.MeshStrategy{:neoHookean},model,model_fluid,order,bconds)
-    _strategy = WeakForms.MeshStrategy{:linearElasticity}()
-    get_FE_spaces(_strategy,model,model_fluid,order,bconds)
-end
-
-function get_FE_spaces(strategy::WeakForms.MeshStrategy{:biharmonic},model,model_fluid,order,bconds)
+function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy{:biharmonic},model,model_fluid,order,bconds)
     Vw_FSI = TestFESpace(
         model=model,
         valuetype=VectorValue{2,Float64},
@@ -305,3 +291,53 @@ function get_FE_spaces(strategy::WeakForms.MeshStrategy{:biharmonic},model,model
         X_FSI = MultiFieldFESpace([Uw_FSI,Uu_FSI,Uv_FSI,P])
     )
 end
+
+# function computeForces(strategy::WeakForms.MeshStrategy{:biharmonic}, sol, xh0)
+
+#     ## Surface triangulation
+#     trian_Γc = BoundaryTriangulation(model, "cylinder")
+#     quad_Γc = CellQuadrature(trian_Γc, 2)
+#     n_Γc = get_normal_vector(trian_Γc)
+
+#     ## Drag & Lift coefficients
+#     coeff(F) = 2 * F / (ρ * Um^2 * ⌀)
+
+#     ## Initialize arrays
+#     tpl = Real[]
+#     CDpl = Real[]
+#     CLpl = Real[]
+#     uhn = xh0[1]
+#     phn = xh0[2]
+
+#     ## Get solution at n+θ (where pressure and velocity are balanced)
+#     θ = 0.5
+
+#     ## Loop over steps
+#     for (xh, t) in sol
+
+#         ## Get the solution at n+θ (where velocity and pressure are balanced)
+#         uh = xh.blocks[1]
+#         ph = xh.blocks[2]
+#         phθ = θ * ph + (1.0 - θ) * phn
+#         uh_Γc = restrict(uh, trian_Γc)
+#         uhn_Γc = restrict(uhn, trian_Γc)
+#         ph_Γc = restrict(phθ, trian_Γc)
+#         εθ = θ * ε(uh_Γc) + (1.0 - θ) * ε(uhn_Γc)
+#         FD, FL = sum(integrate(
+#             (n_Γc ⋅ σ_dev(ε(uh_Γc))  - ph_Γc * n_Γc),
+#             trian_Γc,
+#             quad_Γc,
+#         ))
+
+#         ## Drag and lift coefficients
+#         push!(tpl, t)
+#         push!(CDpl, -coeff(FD))
+#         push!(CLpl, coeff(FL))
+
+#         ## store step n
+#         uhn = uh
+#         phn = ph
+#     end
+
+#     return (tpl, CDpl, CLpl)
+# end
