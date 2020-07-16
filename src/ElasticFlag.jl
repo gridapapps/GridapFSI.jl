@@ -20,6 +20,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     t0 = _get_kwarg(:t0,kwargs,0.0)
     tf = _get_kwarg(:tf,kwargs,0.1)
     dt = _get_kwarg(:dt,kwargs,0.1)
+    θ  = _get_kwarg(:theta,kwargs,0.5)
 
     # Mesh strategy
     strategyName = _get_kwarg(:strategy,kwargs,"linearElasticity")
@@ -141,11 +142,28 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 				    ftol = 1.0e-6,
             iterations = 50
 		    )
-		    odes =  ThetaMethod(nls, dt, 0.5)
+		    odes =  ThetaMethod(nls, dt, θ)
 		    solver = TransientFESolver(odes)
 		    sol_FSI = solve(solver, op_FSI, xh0, t0, tf)
-		    writePVD(filePath, trian_fluid, sol_FSI, append=true)
+		    #writePVD(filePath, trian_fluid, sol_FSI, append=true)
     end
+
+    # Compute outputs
+    out_params = Dict("μ"=>μ_f,
+                      "Um"=>Um,
+                      "⌀"=>⌀,
+                      "ρ"=>ρ_f,
+                      "θ"=>θ,
+                      "model"=>model,
+                      "bdegree"=>bdegree,
+                      "trian"=>trian,
+                      "trian_Γi"=>trian_Γi,
+                      "quad_Γi"=>quad_Γi,
+                      "n_Γi"=>n_Γi,
+                      "xh0"=>xh0,
+                      "sol"=>sol_FSI,
+                      "filePath"=>filePath)
+    output = computeOutputs(problem,strategy;params=out_params)
 
 end
 
@@ -292,52 +310,92 @@ function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy{:biharm
     )
 end
 
-# function computeForces(strategy::WeakForms.MeshStrategy{:biharmonic}, sol, xh0)
+function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshStrategy{:biharmonic};params=Dict())#, sol, xh0)
 
-#     ## Surface triangulation
-#     trian_Γc = BoundaryTriangulation(model, "cylinder")
-#     quad_Γc = CellQuadrature(trian_Γc, 2)
-#     n_Γc = get_normal_vector(trian_Γc)
+    # Unpack parameters
+    model = params["model"]
+    bdegree = params["bdegree"]
+    xh0 = params["xh0"]
+    sol = params["sol"]
+    μ = params["μ"]
+    trian = params["trian"]
+    trian_Γi = params["trian_Γi"]
+    quad_Γi = params["quad_Γi"]
+    n_Γi = params["n_Γi"]
+    Um = params["Um"]
+    ⌀ = params["⌀"]
+    ρ = params["ρ"]
+    θ = params["θ"]
+    filePath = params["filePath"]
 
-#     ## Drag & Lift coefficients
-#     coeff(F) = 2 * F / (ρ * Um^2 * ⌀)
+    ## Surface triangulation
+    trian_Γc = BoundaryTriangulation(model, "cylinder")
+    quad_Γc = CellQuadrature(trian_Γc, bdegree)
+    n_Γc = get_normal_vector(trian_Γc)
 
-#     ## Initialize arrays
-#     tpl = Real[]
-#     CDpl = Real[]
-#     CLpl = Real[]
-#     uhn = xh0[1]
-#     phn = xh0[2]
+    ## Drag & Lift coefficients
+    coeff(F) = 2 * F / (ρ * Um^2 * ⌀)
 
-#     ## Get solution at n+θ (where pressure and velocity are balanced)
-#     θ = 0.5
+    ## Initialize arrays
+    tpl = Real[]
+    CDpl = Real[]
+    CLpl = Real[]
+    vhn = xh0[3]
+    phn = xh0[4]
 
-#     ## Loop over steps
-#     for (xh, t) in sol
+    ## Loop over steps
+    outfiles = paraview_collection(filePath, append=true) do pvd
+        for (i,(xh, t)) in enumerate(sol)
+            println("STEP: $i, TIME: $t")
+            println("============================")
 
-#         ## Get the solution at n+θ (where velocity and pressure are balanced)
-#         uh = xh.blocks[1]
-#         ph = xh.blocks[2]
-#         phθ = θ * ph + (1.0 - θ) * phn
-#         uh_Γc = restrict(uh, trian_Γc)
-#         uhn_Γc = restrict(uhn, trian_Γc)
-#         ph_Γc = restrict(phθ, trian_Γc)
-#         εθ = θ * ε(uh_Γc) + (1.0 - θ) * ε(uhn_Γc)
-#         FD, FL = sum(integrate(
-#             (n_Γc ⋅ σ_dev(ε(uh_Γc))  - ph_Γc * n_Γc),
-#             trian_Γc,
-#             quad_Γc,
-#         ))
+            ## Get the solution at n+θ (where velocity and pressure are balanced)
+            vh = xh.blocks[3]
+            ph = xh.blocks[4]
+            phθ = θ * ph + (1.0 - θ) * phn
+            # Integrate on the cylinder
+            vh_Γc = restrict(vh, trian_Γc)
+            vhn_Γc = restrict(vhn, trian_Γc)
+            ph_Γc = restrict(phθ, trian_Γc)
+            εθc = θ * ε(vh_Γc) + (1.0 - θ) * ε(vhn_Γc)
+            FDc, FLc = sum(integrate(
+                (n_Γc ⋅ WeakForms.σ_dev(μ,εθc)  - ph_Γc * n_Γc),
+                trian_Γc,
+                quad_Γc,
+            ))
+            # Integrate on the interface
+            vh_Γi = restrict(vh, trian_Γi)
+            vhn_Γi = restrict(vhn, trian_Γi)
+            ph_Γi = restrict(phθ, trian_Γi)
+            εθi = θ * ε(vh_Γi) + (1.0 - θ) * ε(vhn_Γi)
+            FDi, FLi = sum(integrate(
+                (n_Γi ⋅ WeakForms.σ_dev(μ,εθi)  - ph_Γi * n_Γi),
+                trian_Γi,
+                quad_Γi,
+            ))
+            FD = FDc + FDi
+            FL = FLc + FLi
 
-#         ## Drag and lift coefficients
-#         push!(tpl, t)
-#         push!(CDpl, -coeff(FD))
-#         push!(CLpl, coeff(FL))
+            ## Drag and lift coefficients
+            push!(tpl, t)
+            push!(CDpl, -coeff(FD))
+            push!(CLpl, coeff(FL))
 
-#         ## store step n
-#         uhn = uh
-#         phn = ph
-#     end
+            ## store step n
+            vhn = vh
+            phn = ph
 
-#     return (tpl, CDpl, CLpl)
-# end
+            # Write to PVD
+            uh = xh.blocks[2]
+            vh = xh.blocks[3]
+				    ph = xh.blocks[4]
+            pvd[t] = createvtk(
+                trian,
+                filePath * "_$t.vtu",
+                cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
+            )
+        end
+    end
+
+    return (tpl, CDpl, CLpl)
+end
