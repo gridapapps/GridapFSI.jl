@@ -1,4 +1,6 @@
 module GridapFSI
+using GridapPETSc
+using MPI
 
 using TimerOutputs
 
@@ -11,6 +13,9 @@ using GridapFSI.FSIDrivers
 
 function main(;problemName::String="elasticFlag",kwargs...)
 
+    MPI.Init()
+    GridapPETSc.Init()
+
     reset_timer!()
 
     # Setup problem
@@ -21,6 +26,9 @@ function main(;problemName::String="elasticFlag",kwargs...)
 
     print_timer()
     println()
+
+    GridapPETSc.Finalize()
+    MPI.Finalize()
 
     return outputs
 
