@@ -132,7 +132,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @timeit "FSI problem" begin
         println("Solving FSI problem")
 		    xh0  = interpolate(X_FSI(0.0),xh)
+        ls = PETScSolver()
 		    nls = NLSolver(
+            ls,
 				    #GmresSolver(preconditioner=ilu,τ=1.0e-6),
 				    #GmresSolver(preconditioner=AMGPreconditioner{SmoothedAggregation}),
 				    show_trace = true,
@@ -333,18 +335,16 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     quad_Γc = CellQuadrature(trian_Γc, bdegree)
     n_Γc = get_normal_vector(trian_Γc)
 
-    ## Drag & Lift coefficients
-    coeff(F) = 2 * F / (ρ * Um^2 * ⌀)
-
     ## Initialize arrays
     tpl = Real[]
-    CDpl = Real[]
-    CLpl = Real[]
+    FDpl = Real[]
+    FLpl = Real[]
     vhn = xh0[3]
     phn = xh0[4]
 
     ## Loop over steps
-    outfiles = paraview_collection(filePath, append=true) do pvd
+    outfiles = paraview_collection(filePath, append=true
+                                   ) do pvd
         for (i,(xh, t)) in enumerate(sol)
             println("STEP: $i, TIME: $t")
             println("============================")
@@ -357,6 +357,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             vh_Γc = restrict(vh, trian_Γc)
             vhn_Γc = restrict(vhn, trian_Γc)
             ph_Γc = restrict(phθ, trian_Γc)
+
             εθc = θ * ε(vh_Γc) + (1.0 - θ) * ε(vhn_Γc)
             FDc, FLc = sum(integrate(
                 (n_Γc ⋅ WeakForms.σ_dev(μ,εθc)  - ph_Γc * n_Γc),
@@ -376,10 +377,10 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             FD = FDc + FDi
             FL = FLc + FLi
 
-            ## Drag and lift coefficients
+            ## Drag and lift Forces
             push!(tpl, t)
-            push!(CDpl, -coeff(FD))
-            push!(CLpl, coeff(FL))
+            push!(FDpl, FD)
+            push!(FLpl, FL)
 
             ## store step n
             vhn = vh
@@ -397,5 +398,5 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
         end
     end
 
-    return (tpl, CDpl, CLpl)
+    return (tpl, FDpl, FLpl)
 end
