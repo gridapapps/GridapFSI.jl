@@ -16,6 +16,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     # Mesh properties
     E_m = _get_kwarg(:E_m,kwargs,1.0)
     ν_m = _get_kwarg(:nu_m,kwargs,-0.1)
+    α_m = _get_kwarg(:alpha_m,kwargs,1.0e-5)
     # Time stepping
     t0 = _get_kwarg(:t0,kwargs,0.0)
     tf = _get_kwarg(:tf,kwargs,0.1)
@@ -88,6 +89,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
                         "ρ"=>ρ_f,
                         "E"=>E_m,
                         "ν"=>ν_m,
+                        "α"=>α_m,
                         "vol"=>vol_fluid)
     fsi_s_params = Dict("ρ"=>ρ_s,
                         "E"=>E_s,
@@ -96,6 +98,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     fsi_Γi_params = Dict("n"=>n_Γi,
                          "E"=>E_m,
                          "ν"=>ν_m,
+                         "α"=>α_m,
                          "vol"=>vol_Γi)
 
     # FSI problem
@@ -147,7 +150,6 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 		    odes =  ThetaMethod(nls, dt, θ)
 		    solver = TransientFESolver(odes)
 		    sol_FSI = solve(solver, op_FSI, xh0, t0, tf)
-		    #writePVD(filePath, trian_fluid, sol_FSI, append=true)
     end
 
     # Compute outputs

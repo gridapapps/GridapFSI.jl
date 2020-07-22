@@ -13,19 +13,22 @@ function execute(problem::Problem{:analytical};kwargs...)
     n_m = _get_kwarg(:n_m,kwargs,10)
     E_m = _get_kwarg(:E_m,kwargs,1.0)
     ν_m = _get_kwarg(:nu_m,kwargs,-0.1)
+    α_m = _get_kwarg(:alpha_m,kwargs,1.0e-5)
     # Time stepping
     t0 = _get_kwarg(:t0,kwargs,0.0)
     tf = _get_kwarg(:tf,kwargs,0.1)
     dt = _get_kwarg(:dt,kwargs,0.1)
 
     # Mesh strategy
-    strategyName = _get_kwarg(:strategy,kwargs,"linearElasticity")
+    strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
     strategy = WeakForms.MeshStrategy{Symbol(strategyName)}()
 
     # Define BC functions
     println("Defining Boundary conditions")
-    u(x, t) = 1.0e-3 * VectorValue( x[1]^2*x[2] , -x[1]*x[2]^2) * t
-    v(x, t) = 1.0e-3 * VectorValue( x[1]^2*x[2] , -x[1]*x[2]^2)
+    #u(x, t) = 1.0e-2 * VectorValue( x[1]^2*x[2] , -x[1]*x[2]^2) * t
+    #v(x, t) = 1.0e-2 * VectorValue( x[1]^2*x[2] , -x[1]*x[2]^2)
+    u(x, t) = 1.0e-2 * VectorValue( 1.0 , -1.0) * t
+    v(x, t) = 1.0e-2 * VectorValue( 1.0 , -1.0)
     u(t::Real) = x -> u(x,t)
     v(t::Real) = x -> v(x,t)
     ∂tu(t) = x -> VectorValue(ForwardDiff.derivative(t -> get_array(u(x,t)),t))
@@ -44,19 +47,19 @@ function execute(problem::Problem{:analytical};kwargs...)
     I = TensorValue( 1.0, 0.0, 0.0, 1.0 )
     F(t) = x -> ∇(u(t))(x) + I
     J(t) = x -> det(F(t))(x)
-    ε(t) = x -> 0.5*( ∇(u(t))(x) + (∇(u(t))')(x) )
-    α(t) = x -> α_m(J(t)(x))
-    (λ_m, μ_m) = WeakForms.lame_parameters(E_m,ν_m)
-    λ(t) = x -> α(t)(x)*λ_m
-    μ(t) = x -> α(t)(x)*μ_m
-    σ_m(t) = x -> λ(t)(x)*tr(ε(t)(x))*I + 2.0*μ(t)(x)*ε(t)(x)
-    S_SV(t) = x -> F(t)(x)
-    fu_Ωf(t) = x -> ∇⋅(σ_m(t))(x)
-    fv_Ωf(t) = x -> ρ_f * ∂t(v)(t)(x) - (∇⋅(2*μ_f*ε(t)))(x) + ∇(p(t))(x)*I + ρ_f*(v(t)-∂t(u)(t)(x))⋅∇(v(t))(x)
+    E(t) = x -> 0.5 * ((F(t)')(x)⋅F(t)(x) - I)
+    (λ_s, μ_s) = WeakForms.lame_parameters(E_s,ν_s)
+    S_SV(t) = x -> 2*μ_s*E(t)(x) + λ_s*tr(E(t))(x)*I
+    fv_ST_Ωf(t) = x -> - μ_f*Δ(v(t))(x) + ∇(p(t))(x)
+    if( typeof(strategy) == WeakForms.MeshStrategy{:laplacian} )
+        fu_Ωf(t) = x -> - α_m * Δ(u(t))(x)
+    else
+        @notimplemented("The soruce term for $strategy strategy is not implemented")
+    end
+    fv_Ωf(t) = x -> ρ_f * ∂t(v)(t)(x) - μ_f * Δ(v(t))(x) + ∇(p(t))(x) + ρ_f*( (∇(v(t))(x)')⋅(v(t)(x) - ∂t(u)(t)(x)) )
     fp_Ωf(t) = x -> (∇⋅v(t))(x)
     fu_Ωs(t) = x -> ∂t(u)(t)(x) - v(t)(x)
     fv_Ωs(t) = x -> ρ_s * ∂t(v)(t)(x) - (∇⋅(F(t)⋅S_SV(t)))
-    println(typeof(fu_Ωf(0.0)))
 
     # Discrete model
     println("Defining discrete model")
@@ -80,7 +83,6 @@ function execute(problem::Problem{:analytical};kwargs...)
 
     # Build fluid-solid interface labelling
     println("Defining Fluid-Solid interface")
-
     labeling = get_face_labeling(model_fluid)
     new_entity = num_entities(labeling) + 1
     topo = get_grid_topology(model_fluid)
@@ -115,6 +117,7 @@ function execute(problem::Problem{:analytical};kwargs...)
     order = _get_kwarg(:order,kwargs,2)
     degree = 2*order
     bdegree = 2*order
+    quad = CellQuadrature(trian,degree)
     quad_solid = CellQuadrature(trian_solid,degree)
     quad_fluid = CellQuadrature(trian_fluid,degree)
     quad_Γi = CellQuadrature(trian_Γi,bdegree)
@@ -125,8 +128,8 @@ function execute(problem::Problem{:analytical};kwargs...)
 
     # Stokes problem for initial solution
     println("Defining Stokes operator")
-    res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f)
-    jac_ST(x,dx,y) = WeakForms.stokes_residual(strategy,dx,y,μ_f)
+    res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f,fv_ST_Ωf(0.0))
+    jac_ST(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ_f)
     t_ST_Ωf = FETerm(res_ST, jac_ST, trian_fluid, quad_fluid)
     op_ST = FEOperator(X_ST,Y_ST,t_ST_Ωf)
 
@@ -135,22 +138,28 @@ function execute(problem::Problem{:analytical};kwargs...)
                         "ρ"=>ρ_f,
                         "E"=>E_m,
                         "ν"=>ν_m,
+                        "α"=>α_m,
+                        "fu"=>fu_Ωf,
+                        "fv"=>fv_Ωf,
                         "vol"=>vol_fluid)
     fsi_s_params = Dict("ρ"=>ρ_s,
                         "E"=>E_s,
                         "ν"=>ν_s,
+                        "fu"=>fu_Ωs,
+                        "fv"=>fv_Ωs,
                         "vol"=>vol_solid)
     fsi_Γi_params = Dict("n"=>n_Γi,
                          "E"=>E_m,
                          "ν"=>ν_m,
+                         "α"=>α_m,
                          "vol"=>vol_Γi)
 
     # FSI problem
     println("Defining FSI operator")
-    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,x,xt,y,fsi_f_params)
+    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,t,x,xt,y,fsi_f_params)
     jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,x,xt,dx,y,fsi_f_params)
     jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,fsi_f_params)
-    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,x,xt,y,fsi_s_params)
+    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,t,x,xt,y,fsi_s_params)
     jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,x,xt,dx,y,fsi_s_params)
     jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,fsi_s_params)
     res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,x,y,fsi_Γi_params)
@@ -175,6 +184,13 @@ function execute(problem::Problem{:analytical};kwargs...)
         writePVD(filePath, trian_fluid, [(xh, 0.0)])
     end
 
+    # Compute Stokes solution L2-norm
+    l2(w) = w⋅w
+    ev_ST = v(0.0) - restrict(xh[2],trian_fluid)
+    el2_ST = sqrt(sum( integrate(l2(ev_ST),trian_fluid,quad_fluid) ))
+    println("Stokes L2-norm: ", el2_ST)
+    @test el2_ST < 1.0e-12
+
     # Solve FSI problem
     @timeit "FSI problem" begin
         println("Solving FSI problem")
@@ -186,14 +202,21 @@ function execute(problem::Problem{:analytical};kwargs...)
 				    method = :newton,
 				    #linesearch = HagerZhang(),
 				    linesearch = BackTracking(),
-				    ftol = 1.0e-6,
+				    ftol = 1.0e-10,
             iterations = 50
 		    )
 		    odes =  ThetaMethod(nls, dt, 0.5)
 		    solver = TransientFESolver(odes)
 		    sol_FSI = solve(solver, op_FSI, xh0, t0, tf)
-		    writePVD(filePath, trian_fluid, sol_FSI, append=true)
     end
+
+    # Compute outputs
+    out_params = Dict("trian"=>trian,
+                      "quad"=>quad,
+                      "sol"=>sol_FSI,
+                      "u"=>u,
+                      "filePath"=>filePath)
+    output = computeOutputs(problem,strategy;params=out_params)
 
 end
 
@@ -210,4 +233,44 @@ function get_boundary_conditions(problem::Problem{:analytical},strategy::WeakFor
         ST_Vu_values = [u(0.0),u(0.0)],
         ST_Vv_values = [v(0.0),v(0.0)],
     )
+end
+
+function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshStrategy;params=Dict())
+
+    # Unpack parameters
+    trian = params["trian"]
+    quad = params["quad"]
+    sol = params["sol"]
+    u = params["u"]
+    filePath = params["filePath"]
+    l2(w) = w⋅w
+
+
+    ## Initialize arrays
+    tpl = Real[]
+    eupl = Real[]
+
+    ## Loop over steps
+    outfiles = paraview_collection(filePath, append=true) do pvd
+        for (i,(xh, t)) in enumerate(sol)
+            println("STEP: $i, TIME: $t")
+            println("============================")
+            
+            # Compute errors
+            eu = u(t) - restrict(xh[1],trian)
+            eul2 = sqrt(sum( integrate(l2(eu),trian,quad )))
+            println("Displacement L2-norm: ", eul2)
+
+            push!(tpl, t)
+            push!(eupl, eul2)
+
+            # Write to PVD
+            pvd[t] = createvtk(
+                trian,
+                filePath * "_$t.vtu",
+                cellfields = ["euh" => eu]
+            )
+        end
+    end
+    return (tpl, eupl)
 end
