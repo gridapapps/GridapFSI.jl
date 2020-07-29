@@ -132,12 +132,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @timeit "FSI problem" begin
         println("Solving FSI problem")
 		    xh0  = interpolate(X_FSI(0.0),xh)
-        ls = PETScSolver()
 		    nls = NLSolver(
-            ls,
-				    #GmresSolver(preconditioner=ilu,τ=1.0e-6),
-				    #GmresSolver(preconditioner=AMGPreconditioner{SmoothedAggregation}),
-				    show_trace = true,
+          show_trace = true,
 				    method = :newton,
 				    #linesearch = HagerZhang(),
 				    linesearch = BackTracking(),
