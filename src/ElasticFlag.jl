@@ -24,12 +24,11 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     θ  = _get_kwarg(:theta,kwargs,0.5)
 
     # Mesh strategy
-    strategyName = _get_kwarg(:strategy,kwargs,"linearElasticity")
+    strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
     strategy = WeakForms.MeshStrategy{Symbol(strategyName)}()
 
     # Define BC functions
     println("Defining Boundary conditions")
-
     u_in(x, t) = VectorValue(1.5 * Um * x[2] * (H - x[2]) / ((H / 2)^2), 0.0)
     u_noSlip(x, t) = VectorValue(0.0, 0.0)
     u_in(t::Real) = x -> u_in(x, t)
@@ -42,9 +41,12 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @eval ∂t(::$T_noSlip) = $∂tu_in
     bconds = get_boundary_conditions(problem,strategy,u_in,u_noSlip)
 
+    # Forcing terms
+    f(t) = x -> VectorValue(0.0,0.0)
+
     # Discrete model
     println("Defining discrete model")
-    modelName = _get_kwarg(:model,kwargs,"../models/elasticFlag_coarse.json")
+    modelName = _get_kwarg(:model,kwargs,"models/elasticFlag.json")
     model = DiscreteModelFromFile(modelName)
     model_solid = DiscreteModel(model,"solid")
     model_fluid = DiscreteModel(model,"fluid")
@@ -79,8 +81,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Stokes problem for initial solution
     println("Defining Stokes operator")
-    res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f)
-    jac_ST(x,dx,y) = WeakForms.stokes_residual(strategy,dx,y,μ_f)
+    res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f,f(0.0))
+    jac_ST(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ_f)
     t_ST_Ωf = FETerm(res_ST, jac_ST, trian_fluid, quad_fluid)
     op_ST = FEOperator(X_ST,Y_ST,t_ST_Ωf)
 
@@ -90,10 +92,14 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
                         "E"=>E_m,
                         "ν"=>ν_m,
                         "α"=>α_m,
+                        "fu"=>f,
+                        "fv"=>f,
                         "vol"=>vol_fluid)
     fsi_s_params = Dict("ρ"=>ρ_s,
                         "E"=>E_s,
                         "ν"=>ν_s,
+                        "fu"=>f,
+                        "fv"=>f,
                         "vol"=>vol_solid)
     fsi_Γi_params = Dict("n"=>n_Γi,
                          "E"=>E_m,
@@ -103,10 +109,10 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # FSI problem
     println("Defining FSI operator")
-    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,x,xt,y,fsi_f_params)
+    res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,t,x,xt,y,fsi_f_params)
     jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,x,xt,dx,y,fsi_f_params)
     jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,fsi_f_params)
-    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,x,xt,y,fsi_s_params)
+    res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,t,x,xt,y,fsi_s_params)
     jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,x,xt,dx,y,fsi_s_params)
     jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,fsi_s_params)
     res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,x,y,fsi_Γi_params)
@@ -135,14 +141,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @timeit "FSI problem" begin
         println("Solving FSI problem")
 		    xh0  = interpolate(X_FSI(0.0),xh)
-        ls = PETScSolver()
 		    nls = NLSolver(
-            ls,
-				    #GmresSolver(preconditioner=ilu,τ=1.0e-6),
-				    #GmresSolver(preconditioner=AMGPreconditioner{SmoothedAggregation}),
 				    show_trace = true,
 				    method = :newton,
-				    #linesearch = HagerZhang(),
 				    linesearch = BackTracking(),
 				    ftol = 1.0e-6,
             iterations = 50
@@ -314,7 +315,7 @@ function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy{:biharm
     )
 end
 
-function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshStrategy{:biharmonic};params=Dict())#, sol, xh0)
+function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshStrategy;params=Dict())#, sol, xh0)
 
     # Unpack parameters
     model = params["model"]
@@ -331,7 +332,11 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     ρ = params["ρ"]
     θ = params["θ"]
     filePath = params["filePath"]
-
+    if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
+      uvpindex = [2,3,4]
+    else
+      uvpindex = [1,2,3]
+    end
     ## Surface triangulation
     trian_Γc = BoundaryTriangulation(model, "cylinder")
     quad_Γc = CellQuadrature(trian_Γc, bdegree)
@@ -341,8 +346,8 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     tpl = Real[]
     FDpl = Real[]
     FLpl = Real[]
-    vhn = xh0[3]
-    phn = xh0[4]
+    vhn = xh0[uvpindex[2]]
+    phn = xh0[uvpindex[3]]
 
     ## Loop over steps
     outfiles = paraview_collection(filePath, append=true
@@ -352,8 +357,8 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             println("============================")
 
             ## Get the solution at n+θ (where velocity and pressure are balanced)
-            vh = xh.blocks[3]
-            ph = xh.blocks[4]
+            vh = xh.blocks[uvpindex[2]]
+            ph = xh.blocks[uvpindex[3]]
             phθ = θ * ph + (1.0 - θ) * phn
             # Integrate on the cylinder
             vh_Γc = restrict(vh, trian_Γc)
@@ -389,9 +394,9 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             phn = ph
 
             # Write to PVD
-            uh = xh.blocks[2]
-            vh = xh.blocks[3]
-				    ph = xh.blocks[4]
+            uh = xh.blocks[uvpindex[1]]
+            vh = xh.blocks[uvpindex[2]]
+				    ph = xh.blocks[uvpindex[3]]
             pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",

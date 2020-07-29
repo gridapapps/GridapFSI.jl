@@ -55,7 +55,7 @@ function stokes_jacobian(strategy::MeshStrategy{:biharmonic},dx,y,μ::Real)
     dw, du, dv, dp = dx
     ψ, ϕ, φ, q = y
     _strategy = MeshStrategy{:linearElasticity}()
-    (ε(ψ) ⊙ σ_dev(μ,ε(dw))) + stokes_jacobian(_strategy,[du,dv,pd],[ϕ,φ,q],μ)
+    (ε(ψ) ⊙ σ_dev(μ,ε(dw))) + stokes_jacobian(_strategy,[du,dv,dp],[ϕ,φ,q],μ)
 end
 
 # FSI
@@ -87,14 +87,16 @@ function a_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,vol)
     ψ, ϕ, φ, q = y
     #α = 1.0e-3
     α(u) = 1.0e-5#α_m(J(∇(u)))
-    vol* ( α(u)*(ψ⋅w) + α(u)*(∇(ψ) ⊙ ∇(u)) )
+    #vol* ( α(u)*(ψ⋅w) + α(u)*(∇(ψ) ⊙ ∇(u)) )
+    α(u)*(ψ⋅w) + α(u)*(∇(ψ) ⊙ ∇(u))
 end
 function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
     #α = 1.0e-3
     α(u) = 1.0e-5#α_m(J(∇(u)))
-    vol*α(u)*(∇(ϕ) ⊙ ∇(w))
+    #vol*α(u)*(∇(ϕ) ⊙ ∇(w))
+    α(u)*(∇(ϕ) ⊙ ∇(w))
 end
 function l_FSI_ϕ_Ωf(strategy::MeshStrategy,y,f,t)
     ϕ, φ, q = y
@@ -103,10 +105,6 @@ end
 function l_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},y,f,t)
     ψ, ϕ, φ, q = y
     (ψ⋅f(t))
-end
-function l_FSI_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},y,f,t)
-    ψ, ϕ, φ, q = y
-    (ϕ⋅f(t))
 end
 function a_FSI_φ_Ωf(x, xt, y, μ, ρ)
     u, v, p = x
@@ -173,14 +171,16 @@ function a_FSI_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,vol)
     ψ, ϕ, φ, q = y
     #α = 1.0e-3
     α(u) = 1.0e-5#α_m(J(∇(u)))
-    - vol * α(u) * (ψ ⋅  (n⋅∇(u)))
+    #- vol * α(u) * (ψ ⋅  (n⋅∇(u)))
+    - α(u) * (ψ ⋅  (n⋅∇(u)))
 end
 function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,vol)
     w, u, v, p = x
     ψ, ϕ, φ, q = y
     #α = 1.0e-3
     α(u) = 1.0e-5#α_m(J(∇(u)))
-    - vol * α(u) * (ϕ ⋅  (n⋅∇(w)))
+    #- vol * α(u) * (ϕ ⋅  (n⋅∇(w)))
+    - α(u) * (ϕ ⋅  (n⋅∇(w)))
 end
 
 # Jacobians
@@ -212,8 +212,9 @@ function da_FSI_dx_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,vol)
     α(u) = 1.0e-5#α_m(J(∇(u)))
     dα(u,du) = 0.0#dα_m(J(∇(u)),dJ(∇(u),∇(du)))
     #vol * ( dα(u,du)*(ψ⋅w) + α(u)*(ψ⋅dw) + dα(u,du)*(∇(ψ) ⊙ ∇(u)) + α(u)*(∇(ψ) ⊙ ∇(du)) )
-    vol * (  α(u)*(ψ⋅dw) + α(u)*(∇(ψ) ⊙ ∇(du)) )
-end
+    #vol * (  α(u)*(ψ⋅dw) + α(u)*(∇(ψ) ⊙ ∇(du)) )
+    α(u)*(ψ⋅dw) + α(u)*(∇(ψ) ⊙ ∇(du))
+  end
 function da_FSI_dx_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,vol)
     w, u, v, p = x
     dw, du, dv, dp = dx
@@ -222,7 +223,8 @@ function da_FSI_dx_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,vol)
     α(u) = 1.0e-5#α_m(J(∇(u)))
     dα(u,du) = 0.0#dα_m(J(∇(u)),dJ(∇(u),∇(du)))
     #vol * ( dα(u,du)*(∇(ϕ) ⊙ ∇(w)) + α(u)*(∇(ϕ) ⊙ ∇(dw)) )
-    vol * ( α(u)*(∇(ϕ) ⊙ ∇(dw)) )
+    #vol * ( α(u)*(∇(ϕ) ⊙ ∇(dw)) )
+    α(u)*(∇(ϕ) ⊙ ∇(dw))
 end
 function da_FSI_du_φ_Ωf(x, xt, dx, y, μ, ρ)
     u, v, p = x
@@ -326,7 +328,8 @@ function da_FSI_dx_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,vol)
     α(u) = 1.0e-5#α_m(J(∇(u)))
     dα(u,du) = 0.0#dα_m(J(∇(u)),dJ(∇(u),∇(du)))
     #- vol * ( dα(u,du) * (ψ ⋅  (n⋅∇(u))) + α(u) * (ψ ⋅  (n⋅∇(du))) )
-    - vol * ( α(u) * (ψ ⋅  (n⋅∇(du))) )
+    #- vol * ( α(u) * (ψ ⋅  (n⋅∇(du))) )
+    - α(u) * (ψ ⋅  (n⋅∇(du)))
 end
 function da_FSI_dx_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,vol)
     w, u, v, p = x
@@ -336,7 +339,8 @@ function da_FSI_dx_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,vol)
     α(u) = 1.0e-5#α_m(J(∇(u)))
     dα(u,du) = 0.0#dα_m(J(∇(u)),dJ(∇(u),∇(du)))
     #- vol * ( dα(u,du) * (ϕ ⋅  (n⋅∇(w))) + α(u) * (ϕ ⋅  (n⋅∇(dw))) )
-    - vol * ( α(u) * (ϕ ⋅  (n⋅∇(dw))) )
+    #- vol * ( α(u) * (ϕ ⋅  (n⋅∇(dw))) )
+    - α(u) * (ϕ ⋅  (n⋅∇(dw)))
 end
 
 

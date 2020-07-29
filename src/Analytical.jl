@@ -6,7 +6,7 @@ Executes a transient FSI driver with a constant function in space, linear in tim
 """
 function execute(problem::Problem{:analytical};kwargs...)
 
-  # Problem setting (Default FSI-2)
+  # Problem setting
   println("Setting analytical fluid problem parameters")
   # Solid properties
   E_s = _get_kwarg(:E_s,kwargs,1.0)
@@ -22,7 +22,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   α_m = _get_kwarg(:alpha_m,kwargs,1.0e-5)
   # Time stepping
   t0 = _get_kwarg(:t0,kwargs,0.0)
-  tf = _get_kwarg(:tf,kwargs,0.1)
+  tf = _get_kwarg(:tf,kwargs,0.5)
   dt = _get_kwarg(:dt,kwargs,0.1)
 
   # Mesh strategy
@@ -339,6 +339,9 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
       println("FSI L2-norm u: ", eul2)
       println("FSI L2-norm v: ", evl2)
       println("FSI L2-norm p: ", epl2)
+      @test eul2 < 1.0e-12
+      @test evl2 < 1.0e-12
+      @test epl2 < 1.0e-12
 
       push!(tpl, t)
       push!(eupl, eul2)
