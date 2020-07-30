@@ -416,8 +416,8 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
 
             ## Drag and lift Forces
             push!(tpl, t)
-            push!(FDpl, FD)
-            push!(FLpl, FL)
+            push!(FDpl, -FD)
+            push!(FLpl, -FL)
 
             ## store step n
             uhn = uh
