@@ -1,3 +1,19 @@
+"""
+Executes a elastic flag benchmark proposed by Turek et al in "Proposal for
+numerical benchmarking of fluid-structure interaction between an elastic
+object and laminar incompressible flow"
+
+The default parameters correspond to FSI2 test case.
+FS1 test can be run modifying the default values of the following parameters:
+  Um=0.2,
+  Re=20,
+  rho_s=1.0e-3
+FS3 test can be run modifying the default values of the following parameters:
+  Um=2.0,
+  Re=200,
+  rho_s=1.0e-3
+  E_s=5.6e6
+"""
 function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Problem setting (Default FSI-2)
@@ -5,18 +21,19 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     Um = _get_kwarg(:Um,kwargs,1.0)
     H = _get_kwarg(:H,kwargs,0.41)
     ⌀ = _get_kwarg(:D,kwargs,0.1)
-    Re = _get_kwarg(:Re,kwargs, 100.0)
     # Solid properties
     E_s = _get_kwarg(:E_s,kwargs,1.4e6)
     ν_s = _get_kwarg(:nu_s,kwargs,0.4)
     ρ_s = _get_kwarg(:rho_s,kwargs,1.0e4)
     # Fluid properties
     ρ_f = _get_kwarg(:rho_f,kwargs,1.0e3)
+    Re = _get_kwarg(:Re,kwargs, 100.0)
     μ_f = ρ_f * Um * ⌀ / Re
     # Mesh properties
     E_m = _get_kwarg(:E_m,kwargs,1.0)
     ν_m = _get_kwarg(:nu_m,kwargs,-0.1)
     α_m = _get_kwarg(:alpha_m,kwargs,1.0e-5)
+    weight_strategy = _get_kwarg(:weight_strategy,kwargs,"constant")
     # Time stepping
     t0 = _get_kwarg(:t0,kwargs,0.0)
     tf = _get_kwarg(:tf,kwargs,0.1)
@@ -60,11 +77,15 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     n_Γi = get_normal_vector(trian_Γi)
 
     # Compute cell area (auxiliar quantity for mesh motion eq.)
-    volf = cell_measure(trian_fluid,trian)
-    vols = cell_measure(trian_solid,trian)
-    vol_fluid = reindex(volf,trian_fluid)
-    vol_solid = reindex(vols,trian_solid)
-    vol_Γi = reindex(volf,trian_Γi)
+    if( weight_strategy == "volume")
+      volf = cell_measure(trian_fluid,trian)
+      vols = cell_measure(trian_solid,trian)
+      α_fluid = α_m * reindex(volf,trian_fluid)
+      α_solid = α_m * reindex(vols,trian_solid)
+      α_Γi = α_m * reindex(volf,trian_Γi)
+    else
+      α_fluid = α_m; α_solid = α_m; α_Γi = α_m
+    end
 
     # Quadratures
     println("Defining quadratures")
@@ -91,21 +112,19 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
                         "ρ"=>ρ_f,
                         "E"=>E_m,
                         "ν"=>ν_m,
-                        "α"=>α_m,
+                        "α"=>α_fluid,
                         "fu"=>f,
-                        "fv"=>f,
-                        "vol"=>vol_fluid)
+                        "fv"=>f)
     fsi_s_params = Dict("ρ"=>ρ_s,
                         "E"=>E_s,
                         "ν"=>ν_s,
                         "fu"=>f,
                         "fv"=>f,
-                        "vol"=>vol_solid)
+                        "α"=>α_solid)
     fsi_Γi_params = Dict("n"=>n_Γi,
                          "E"=>E_m,
                          "ν"=>ν_m,
-                         "α"=>α_m,
-                         "vol"=>vol_Γi)
+                         "α"=>α_Γi)
 
     # FSI problem
     println("Defining FSI operator")
@@ -238,7 +257,7 @@ function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy,model,m
         Y_ST = MultiFieldFESpace([Vu_ST,Vv_ST,Q]),
         X_ST = MultiFieldFESpace([Uu_ST,Uv_ST,P]),
         Y_FSI = MultiFieldFESpace([Vu_FSI,Vv_FSI,Q]),
-        X_FSI = MultiFieldFESpace([Uu_FSI,Uv_FSI,P])
+        X_FSI = TransientMultiFieldFESpace([Uu_FSI,Uv_FSI,P])
     )
 end
 
@@ -311,7 +330,7 @@ function get_FE_spaces(problem::Problem,strategy::WeakForms.MeshStrategy{:biharm
         Y_ST = MultiFieldFESpace([Vw_ST,Vu_ST,Vv_ST,Q]),
         X_ST = MultiFieldFESpace([Uw_ST,Uu_ST,Uv_ST,P]),
         Y_FSI = MultiFieldFESpace([Vw_FSI,Vu_FSI,Vv_FSI,Q]),
-        X_FSI = MultiFieldFESpace([Uw_FSI,Uu_FSI,Uv_FSI,P])
+        X_FSI = TransientMultiFieldFESpace([Uw_FSI,Uu_FSI,Uv_FSI,P])
     )
 end
 
@@ -346,6 +365,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     tpl = Real[]
     FDpl = Real[]
     FLpl = Real[]
+    uhn = xh0[uvpindex[1]]
     vhn = xh0[uvpindex[2]]
     phn = xh0[uvpindex[3]]
 
@@ -357,27 +377,37 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             println("============================")
 
             ## Get the solution at n+θ (where velocity and pressure are balanced)
+            uh = xh.blocks[uvpindex[1]]
             vh = xh.blocks[uvpindex[2]]
             ph = xh.blocks[uvpindex[3]]
-            phθ = θ * ph + (1.0 - θ) * phn
-            # Integrate on the cylinder
+            uh_Γc = restrict(uh, trian_Γc)
             vh_Γc = restrict(vh, trian_Γc)
+            ph_Γc = restrict(ph, trian_Γc)
+            uhn_Γc = restrict(uhn, trian_Γc)
             vhn_Γc = restrict(vhn, trian_Γc)
-            ph_Γc = restrict(phθ, trian_Γc)
+            phn_Γc = restrict(phn, trian_Γc)
+            uhθ_Γc = θ*uh_Γc + (1.0-θ)*uhn_Γc
+            vhθ_Γc = θ*vh_Γc + (1.0-θ)*vhn_Γc
+            phθ_Γc = θ*ph_Γc + (1.0-θ)*phn_Γc
+            uh_Γi = restrict(uh, trian_Γi)
+            vh_Γi = restrict(vh, trian_Γi)
+            ph_Γi = restrict(ph, trian_Γi)
+            uhn_Γi = restrict(uhn, trian_Γi)
+            vhn_Γi = restrict(vhn, trian_Γi)
+            phn_Γi = restrict(phn, trian_Γi)
+            uhθ_Γi = θ*uh_Γi + (1.0-θ)*uhn_Γi
+            vhθ_Γi = θ*vh_Γi + (1.0-θ)*vhn_Γi
+            phθ_Γi = θ*ph_Γi + (1.0-θ)*phn_Γi
 
-            εθc = θ * ε(vh_Γc) + (1.0 - θ) * ε(vhn_Γc)
+            # Integrate on the cylinder
             FDc, FLc = sum(integrate(
-                (n_Γc ⋅ WeakForms.σ_dev(μ,εθc)  - ph_Γc * n_Γc),
+              (n_Γc ⋅ WeakForms.Pf_dev(μ,uhθ_Γc,vhθ_Γc)  + WeakForms.Pf_vol(uhθ_Γc,phθ_Γc) * n_Γc),
                 trian_Γc,
                 quad_Γc,
             ))
             # Integrate on the interface
-            vh_Γi = restrict(vh, trian_Γi)
-            vhn_Γi = restrict(vhn, trian_Γi)
-            ph_Γi = restrict(phθ, trian_Γi)
-            εθi = θ * ε(vh_Γi) + (1.0 - θ) * ε(vhn_Γi)
             FDi, FLi = sum(integrate(
-                (n_Γi ⋅ WeakForms.σ_dev(μ,εθi)  - ph_Γi * n_Γi),
+                (n_Γi ⋅ WeakForms.Pf_dev(μ,uhθ_Γi,vhθ_Γi)  + WeakForms.Pf_vol(uhθ_Γi,phθ_Γi) * n_Γi),
                 trian_Γi,
                 quad_Γi,
             ))
@@ -390,6 +420,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             push!(FLpl, FL)
 
             ## store step n
+            uhn = uh
             vhn = vh
             phn = ph
 

@@ -302,7 +302,7 @@ function get_FE_spaces(problem::Problem{:analytical},strategy::WeakForms.MeshStr
       Y_ST = MultiFieldFESpace([Vu_ST,Vv_ST,Q]),
       X_ST = MultiFieldFESpace([Uu_ST,Uv_ST,P]),
       Y_FSI = MultiFieldFESpace([Vu_FSI,Vv_FSI,Q]),
-      X_FSI = MultiFieldFESpace([Uu_FSI,Uv_FSI,P])
+      X_FSI = TransientMultiFieldFESpace([Uu_FSI,Uv_FSI,P])
   )
 end
 
