@@ -40,14 +40,14 @@ output = main(
   model="models/elasticFlagFine.json",
   dt=1.0,
   tf=25.0,
-  theta=0.51
+  theta=0.6
   )
 ```
 This call will run the FSI1 test case using a θ-method with a time step size of `dt=1.0`, using the Biharmonic mesh motion strategy with a cell volume weighted constant, and a discrete model defined in `models/elasticFlagFine.json`. In this test the displacement, velocity and pressure fields are outputed to `.vtu` files located in the automatically generated folder `fsi-results`. The result `output` consists on a tuple with the values of time, drag and lift forces. For this specific case we have the following values at the final time:
 
   \# elements | \# DOFs | x-displ of A | y-displ of A | Drag force | Lift force 
   --- | --- | --- | --- | --- | --- 
-  7342 | 152,745 | 2.264e-5 | 8.727e-4 | 14.209 | 0.6811
+  7342 | 152,745 | 2.257e-5 | 8.728e-4 | 14.215 | 0.6803
   Reference | | 2.27e-5 | 8.209e-4 | 14.295 | 0.7638
 
   ![](/models/velFSI1.png)
