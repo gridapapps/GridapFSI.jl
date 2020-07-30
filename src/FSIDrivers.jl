@@ -4,6 +4,7 @@ using Gridap
 using Gridap.Helpers
 using Gridap.Geometry
 using Gridap.Arrays
+using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
 using GridapFSI.WeakForms
