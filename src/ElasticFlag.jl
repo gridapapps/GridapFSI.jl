@@ -33,7 +33,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     E_m = _get_kwarg(:E_m,kwargs,1.0)
     ν_m = _get_kwarg(:nu_m,kwargs,-0.1)
     α_m = _get_kwarg(:alpha_m,kwargs,1.0e-5)
-    weight_strategy = _get_kwarg(:weight_strategy,kwargs,"constant")
+    weight_strategy = _get_kwarg(:alpha_m_weight,kwargs,"constant")
     # Time stepping
     t0 = _get_kwarg(:t0,kwargs,0.0)
     tf = _get_kwarg(:tf,kwargs,0.1)
