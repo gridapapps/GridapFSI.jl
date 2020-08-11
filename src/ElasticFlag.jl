@@ -63,7 +63,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Discrete model
     println("Defining discrete model")
-    modelName = _get_kwarg(:model,kwargs,"models/elasticFlag.json")
+    modelName = _get_kwarg(:model,kwargs,"../models/elasticFlag.json")
     model = DiscreteModelFromFile(modelName)
     model_solid = DiscreteModel(model,"solid")
     model_fluid = DiscreteModel(model,"fluid")
