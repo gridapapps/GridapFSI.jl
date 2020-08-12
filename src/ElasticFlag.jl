@@ -146,7 +146,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     # Setup output files
     folderName = "fsi-results"
     fileName = "fields"
-    if !isdir(folderName)
+    if !isdir(folderName) && is_vtk
         mkdir(folderName)
     end
     filePath = join([folderName, fileName], "/")
