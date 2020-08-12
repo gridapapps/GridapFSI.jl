@@ -39,6 +39,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     tf = _get_kwarg(:tf,kwargs,0.1)
     dt = _get_kwarg(:dt,kwargs,0.1)
     θ  = _get_kwarg(:theta,kwargs,0.5)
+    # Post-process
+    is_vtk = _get_kwarg(:is_vtk,kwargs,false)
 
     # Mesh strategy
     strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
@@ -153,7 +155,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @timeit "ST problem" begin
         println("Solving Stokes problem")
         xh = solve(op_ST)
-        writePVD(filePath, trian_fluid, [(xh, 0.0)])
+        if(is_vtk)
+          writePVD(filePath, trian_fluid, [(xh, 0.0)])
+        end
     end
 
     # Solve FSI problem
@@ -425,14 +429,16 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             phn = ph
 
             # Write to PVD
-            uh = xh.blocks[uvpindex[1]]
-            vh = xh.blocks[uvpindex[2]]
-				    ph = xh.blocks[uvpindex[3]]
-            pvd[t] = createvtk(
+            if(is_vtk)
+              uh = xh.blocks[uvpindex[1]]
+              vh = xh.blocks[uvpindex[2]]
+		  		    ph = xh.blocks[uvpindex[3]]
+              pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",
                 cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
-            )
+              )
+            end
         end
     end
 
