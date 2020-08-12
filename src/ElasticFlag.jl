@@ -146,7 +146,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     # Setup output files
     folderName = "fsi-results"
     fileName = "fields"
-    if !isdir(folderName) && is_vtk
+    if !isdir(folderName)
         mkdir(folderName)
     end
     filePath = join([folderName, fileName], "/")
@@ -190,7 +190,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
                       "n_Γi"=>n_Γi,
                       "xh0"=>xh0,
                       "sol"=>sol_FSI,
-                      "filePath"=>filePath)
+                      "filePath"=>filePath,
+                      "is_vtk"=>is_vtk)
     output = computeOutputs(problem,strategy;params=out_params)
 
 end
@@ -355,6 +356,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     ρ = params["ρ"]
     θ = params["θ"]
     filePath = params["filePath"]
+    is_vtk = params["is_vtk"]
     if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
       uvpindex = [2,3,4]
     else

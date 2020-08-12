@@ -182,7 +182,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   # Setup output files
   folderName = "fsi-results"
   fileName = "fields"
-  if !isdir(folderName) && is_vtk
+  if !isdir(folderName)
     mkdir(folderName)
   end
   filePath = join([folderName, fileName], "/")
@@ -234,7 +234,8 @@ out_params = Dict("trian"=>trian,
 "u"=>u,
 "v"=>v,
 "p"=>p,
-"filePath"=>filePath)
+"filePath"=>filePath,
+"is_vtk"=>is_vtk)
 output = computeOutputs(problem,strategy;params=out_params)
 
 end
@@ -320,6 +321,7 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
   v = params["v"]
   p = params["p"]
   filePath = params["filePath"]
+  is_vtk = params["is_vtk"]
   l2(w) = w⋅w
 
 
