@@ -170,6 +170,11 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
     ψ, ϕ, φ, q = y
     - α * (ϕ ⋅  (n⋅∇(w)))
 end
+function a_FSI_Nitsche_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
+  u, v, p = x
+  ϕ, φ, q = y
+  (mean(φ)⋅jump(v)) + (mean(φ)⋅jump(σ(u))) + (mean(σ(φ))⋅jump(v))
+end
 
 # Jacobians
 function da_FSI_du_ϕ_Ωf(strategy::MeshStrategy{:linearElasticity},x, dx, y, E, ν)
