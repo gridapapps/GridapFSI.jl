@@ -65,10 +65,20 @@ function execute(problem::Problem{:analytical};kwargs...)
       x -> - α_m * Δ(u(t))(x)
     elseif typeof(strategy) == WeakForms.MeshStrategy{:linearElasticity}
       x -> - μ_m * Δ(u(t))(x)
+    elseif typeof(strategy) == WeakForms.MeshStrategy{:neoHookean}
+      x -> - μ_m * Δ(u(t))(x)
+    else
+      @notimplemented("The soruce term for $strategy strategy is not implemented")
     end
     return fu
   end
   fu_Ωf(t) = fu_closure(t,strategy)
+  #fu_Ωf(t) = VectorValue(0.0, 0.0)
+  # if ( typeof(strategy) == WeakForms.MeshStrategy{:laplacian} )
+  #   fu_Ωf(t) = x -> - α_m * Δ(u(t))(x)
+  # elseif ( typeof(strategy) == WeakForms.MeshStrategy{:linearElasticity} )
+  #   fu_Ωf(t) = x -> - μ_m * Δ(u(t))(x)
+  #
   fv_Ωf(t) = x -> ρ_f * ∂t(v)(t)(x) - μ_f * Δ(v(t))(x) + ∇(p(t))(x) + ρ_f*( (∇(v(t))(x)')⋅(v(t)(x) - ∂t(u)(t)(x)) )
   fp_Ωf(t) = x -> (∇⋅v(t))(x)
   fu_Ωs(t) = x -> ∂t(u)(t)(x) - v(t)(x)

@@ -80,7 +80,7 @@ function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:neoHookean},x,y,E,ν)
     u, v, p = x
     ϕ, φ, q = y
     (λ_m,μ_m) = lame_parameters(E,ν)
-    (dE(∇(ϕ),∇(u)) ⊙ S_NH(∇(u),λ,μ))
+    (dE(∇(ϕ),∇(u)) ⊙ S_NH(∇(u),λ_m,μ_m))
 end
 function a_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,α)
     w, u, v, p = x
@@ -158,7 +158,7 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:neoHookean},x,y,n,E,ν)
     u, v, p = x
     ϕ, φ, q = y
     (λ_m,μ_m) = lame_parameters(E,ν)
-    - (ϕ ⋅  (n ⋅ S_NH(∇(u)),λ,μ) )
+    - (ϕ ⋅  (n ⋅ S_NH(∇(u),λ_m,μ_m) ) )
 end
 function a_FSI_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
     w, u, v, p = x
@@ -190,7 +190,7 @@ function da_FSI_du_ϕ_Ωf(strategy::MeshStrategy{:neoHookean},x, dx, y, E, ν)
     du, dv, dp = dx
     ϕ, φ, q = y
     (λ_m,μ_m) = lame_parameters(E,ν)
-    ( dE(∇(ϕ),∇(u)) ⊙ dS_NH(∇(u),∇(du),λ,μ) ) + ( ∇(ϕ) ⊙ ( S_NH(∇(u),λ,μ)⋅∇(du) ) )
+    ( dE(∇(ϕ),∇(u)) ⊙ dS_NH(∇(u),∇(du),λ_m,μ_m) ) + ( ∇(ϕ) ⊙ ( S_NH(∇(u),λ_m,μ_m)⋅∇(du) ) )
 end
 function da_FSI_dx_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,α)
     w, u, v, p = x
@@ -293,7 +293,7 @@ function da_FSI_du_ϕ_Γi(strategy::MeshStrategy{:neoHookean},x,dx,y, n, E, ν)
     du, dv, dp = dx
     ϕ, φ, q = y
     (λ_m,μ_m) = lame_parameters(E,ν)
-    - (ϕ ⋅  (n⋅dS_NH(∇(u),∇(du),λ,μ)) )
+    - (ϕ ⋅  (n⋅dS_NH(∇(u),∇(du),λ_m,μ_m)) )
 end
 function da_FSI_dx_ψ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,α)
     w, u, v, p = x
