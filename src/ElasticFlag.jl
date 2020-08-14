@@ -39,6 +39,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     tf = _get_kwarg(:tf,kwargs,0.1)
     dt = _get_kwarg(:dt,kwargs,0.1)
     θ  = _get_kwarg(:theta,kwargs,0.5)
+    # Post-process
+    is_vtk = _get_kwarg(:is_vtk,kwargs,false)
 
     # Mesh strategy
     strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
@@ -63,7 +65,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
     # Discrete model
     println("Defining discrete model")
-    modelName = _get_kwarg(:model,kwargs,"models/elasticFlag.json")
+    modelName = _get_kwarg(:model,kwargs,"../models/elasticFlag.json")
     model = DiscreteModelFromFile(modelName)
     model_solid = DiscreteModel(model,"solid")
     model_fluid = DiscreteModel(model,"fluid")
@@ -153,7 +155,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     @timeit "ST problem" begin
         println("Solving Stokes problem")
         xh = solve(op_ST)
-        writePVD(filePath, trian_fluid, [(xh, 0.0)])
+        if(is_vtk)
+          writePVD(filePath, trian_fluid, [(xh, 0.0)])
+        end
     end
 
     # Solve FSI problem
@@ -186,7 +190,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
                       "n_Γi"=>n_Γi,
                       "xh0"=>xh0,
                       "sol"=>sol_FSI,
-                      "filePath"=>filePath)
+                      "filePath"=>filePath,
+                      "is_vtk"=>is_vtk)
     output = computeOutputs(problem,strategy;params=out_params)
 
 end
@@ -351,6 +356,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     ρ = params["ρ"]
     θ = params["θ"]
     filePath = params["filePath"]
+    is_vtk = params["is_vtk"]
     if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
       uvpindex = [2,3,4]
     else
@@ -425,14 +431,16 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
             phn = ph
 
             # Write to PVD
-            uh = xh.blocks[uvpindex[1]]
-            vh = xh.blocks[uvpindex[2]]
-				    ph = xh.blocks[uvpindex[3]]
-            pvd[t] = createvtk(
+            if(is_vtk)
+              uh = xh.blocks[uvpindex[1]]
+              vh = xh.blocks[uvpindex[2]]
+		  		    ph = xh.blocks[uvpindex[3]]
+              pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",
                 cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
-            )
+              )
+            end
         end
     end
 

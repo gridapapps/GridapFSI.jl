@@ -24,6 +24,8 @@ function execute(problem::Problem{:analytical};kwargs...)
   t0 = _get_kwarg(:t0,kwargs,0.0)
   tf = _get_kwarg(:tf,kwargs,0.5)
   dt = _get_kwarg(:dt,kwargs,0.1)
+  # Post-process
+  is_vtk = _get_kwarg(:is_vtk,kwargs,false)
 
   # Mesh strategy
   strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
@@ -189,7 +191,9 @@ function execute(problem::Problem{:analytical};kwargs...)
   @timeit "ST problem" begin
   println("Solving Stokes problem")
   xh = solve(op_ST)
-  writePVD(filePath, trian_fluid, [(xh, 0.0)])
+  if(is_vtk)
+    writePVD(filePath, trian_fluid, [(xh, 0.0)])
+  end
 end
 
 # Compute Stokes solution L2-norm
@@ -230,7 +234,8 @@ out_params = Dict("trian"=>trian,
 "u"=>u,
 "v"=>v,
 "p"=>p,
-"filePath"=>filePath)
+"filePath"=>filePath,
+"is_vtk"=>is_vtk)
 output = computeOutputs(problem,strategy;params=out_params)
 
 end
@@ -316,6 +321,7 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
   v = params["v"]
   p = params["p"]
   filePath = params["filePath"]
+  is_vtk = params["is_vtk"]
   l2(w) = w⋅w
 
 
@@ -347,14 +353,16 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
       push!(eupl, eul2)
 
       # Write to PVD
-      uh = restrict(xh[1],trian)
-      vh = restrict(xh[2],trian)
-      ph = restrict(xh[3],trian)
-      pvd[t] = createvtk(
-      trian,
-      filePath * "_$t.vtu",
-      cellfields = ["uh" => uh, "vh" => vh, "ph" => ph, "euh" => eu]
-      )
+      if(is_vtk)
+        uh = restrict(xh[1],trian)
+        vh = restrict(xh[2],trian)
+        ph = restrict(xh[3],trian)
+        pvd[t] = createvtk(
+        trian,
+        filePath * "_$t.vtu",
+        cellfields = ["uh" => uh, "vh" => vh, "ph" => ph, "euh" => eu]
+        )
+      end
     end
   end
   return (tpl, eupl)
