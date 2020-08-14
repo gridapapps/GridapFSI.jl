@@ -15,13 +15,13 @@
   end
 
   # Mesh laws
+  @law I(A) = one(A)
   @law α_m(J) = 1.0e-5 / J
-  @law σ_m(λ,μ,ε) = λ*tr(ε)*one(ε) + 2.0*μ*ε
+  @law σ_m(λ,μ,ε) = λ*tr(ε)*I(ε) + 2.0*μ*ε
   @law dα_m(J,dJ) = - 1.0e-5 * 1.0 / (J*J) * dJ
   @law dσ_m(λ,dλ,μ,dμ,ε,dε) = σ_m(λ,μ,dε) + σ_m(dλ,dμ,ε)
 
   # Solid laws
-  @law I(A) = one(A)
   @law E(∇u) = 0.5 * ((F(∇u)')⋅F(∇u) - I(∇u))
   @law dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
   S_SV(∇u,λ,μ) =  2*μ*E(∇u) + λ*tr(E(∇u))*I(∇u)
