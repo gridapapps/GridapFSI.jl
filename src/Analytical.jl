@@ -57,13 +57,28 @@ function execute(problem::Problem{:analytical};kwargs...)
   J(t) = x -> det(F(t))(x)
   E(t) = x -> 0.5 * ((F(t)(x)')⋅F(t)(x) - I)
   (λ_s, μ_s) = WeakForms.lame_parameters(E_s,ν_s)
+  (λ_m, μ_m) = WeakForms.lame_parameters(E_m,ν_m)
   S_SV(t) = x -> 2*μ_s*E(t)(x) + λ_s*tr(E(t)(x))*I
   fv_ST_Ωf(t) = x -> - μ_f*Δ(v(t))(x) + ∇(p(t))(x)
-  if( typeof(strategy) == WeakForms.MeshStrategy{:laplacian} )
-    fu_Ωf(t) = x -> - α_m * Δ(u(t))(x)
-  else
-    @notimplemented("The soruce term for $strategy strategy is not implemented")
+  function fu_closure(t,strategy)
+    fu = if typeof(strategy) == WeakForms.MeshStrategy{:laplacian}
+      x -> - α_m * Δ(u(t))(x)
+    elseif typeof(strategy) == WeakForms.MeshStrategy{:linearElasticity}
+      x -> - μ_m * Δ(u(t))(x)
+    elseif typeof(strategy) == WeakForms.MeshStrategy{:neoHookean}
+      x -> - μ_m * Δ(u(t))(x)
+    else
+      @notimplemented("The soruce term for $strategy strategy is not implemented")
+    end
+    return fu
   end
+  fu_Ωf(t) = fu_closure(t,strategy)
+  #fu_Ωf(t) = VectorValue(0.0, 0.0)
+  # if ( typeof(strategy) == WeakForms.MeshStrategy{:laplacian} )
+  #   fu_Ωf(t) = x -> - α_m * Δ(u(t))(x)
+  # elseif ( typeof(strategy) == WeakForms.MeshStrategy{:linearElasticity} )
+  #   fu_Ωf(t) = x -> - μ_m * Δ(u(t))(x)
+  #
   fv_Ωf(t) = x -> ρ_f * ∂t(v)(t)(x) - μ_f * Δ(v(t))(x) + ∇(p(t))(x) + ρ_f*( (∇(v(t))(x)')⋅(v(t)(x) - ∂t(u)(t)(x)) )
   fp_Ωf(t) = x -> (∇⋅v(t))(x)
   fu_Ωs(t) = x -> ∂t(u)(t)(x) - v(t)(x)
@@ -207,9 +222,9 @@ epl2_ST = sqrt(sum( integrate(l2(ep_ST),trian_fluid,quad_fluid) ))
 println("Stokes L2-norm u: ", eul2_ST)
 println("Stokes L2-norm v: ", evl2_ST)
 println("Stokes L2-norm p: ", epl2_ST)
-@test eul2_ST < 1.0e-12
-@test evl2_ST < 1.0e-12
-@test epl2_ST < 1.0e-12
+@test eul2_ST < 1.0e-10
+@test evl2_ST < 1.0e-10
+@test epl2_ST < 1.0e-10
 
 # Solve FSI problem
 @timeit "FSI problem" begin
@@ -342,15 +357,6 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
       eul2 = sqrt(sum( integrate(l2(eu),trian,quad )))
       evl2 = sqrt(sum( integrate(l2(ev),trian,quad )))
       epl2 = sqrt(sum( integrate(l2(ep),trian,quad )))
-      println("FSI L2-norm u: ", eul2)
-      println("FSI L2-norm v: ", evl2)
-      println("FSI L2-norm p: ", epl2)
-      @test eul2 < 1.0e-12
-      @test evl2 < 1.0e-12
-      @test epl2 < 1.0e-12
-
-      push!(tpl, t)
-      push!(eupl, eul2)
 
       # Write to PVD
       if(is_vtk)
@@ -363,6 +369,17 @@ function computeOutputs(problem::Problem{:analytical},strategy::WeakForms.MeshSt
         cellfields = ["uh" => uh, "vh" => vh, "ph" => ph, "euh" => eu]
         )
       end
+
+      # Test checks
+      println("FSI L2-norm u: ", eul2)
+      println("FSI L2-norm v: ", evl2)
+      println("FSI L2-norm p: ", epl2)
+      @test eul2 < 1.0e-10
+      @test evl2 < 1.0e-10
+      @test epl2 < 1.0e-10
+
+      push!(tpl, t)
+      push!(eupl, eul2)
     end
   end
   return (tpl, eupl)
