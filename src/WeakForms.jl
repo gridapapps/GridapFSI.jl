@@ -170,10 +170,18 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
     ψ, ϕ, φ, q = y
     - α * (ϕ ⋅  (n⋅∇(w)))
 end
-function a_FSI_Nitsche_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
-  u, v, p = x
-  ϕ, φ, q = y
-  (mean(φ)⋅jump(v)) + (mean(φ)⋅jump(σ(u))) + (mean(σ(φ))⋅jump(v))
+function a_FSI_Nitsche_ϕ_Γi(x,y,n,α)
+  uf, us, vf, vs, pf = x
+  ϕf, ϕs, φf, φs, qf = y
+  u_jump = uf.inward - us.outward
+  v_jump = vf.inward - vs.outward
+  p = pf.inward
+  q = qf.inward
+  ϕ_jump = ϕf.inward - ϕs.outward
+  φ_jump = φf.inward - φs.outward
+  (γ*μ/h*(ϕ_jump⋅u_jump))   + (γ*μ/h*(φ_jump⋅v_jump))
+  - (φ_jump ⋅ (n⋅Pf_dev(μ,uf.inward,vf.inward))) + (φ_jump⋅(n*p))
+  - ((n⋅Pf_dev(μ,ϕf.inward,φf.inward)) ⋅ v_jump) - ((n*q) ⋅ v_jump)
 end
 
 # Jacobians
