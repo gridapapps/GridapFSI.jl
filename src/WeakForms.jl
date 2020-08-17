@@ -4,8 +4,10 @@ using Gridap
 using LinearAlgebra: tr, inv, det
 
 export MeshStrategy
+export Coupling
 
 struct MeshStrategy{Kind} end
+struct Coupling{Kind} end
 
 # Laws
 include("Laws.jl")

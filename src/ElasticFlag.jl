@@ -29,6 +29,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     ρ_f = _get_kwarg(:rho_f,kwargs,1.0e3)
     Re = _get_kwarg(:Re,kwargs, 100.0)
     μ_f = ρ_f * Um * ⌀ / Re
+    γ_f = _get_kwarg(:gamma_f,kwargs,1.0)
     # Mesh properties
     E_m = _get_kwarg(:E_m,kwargs,1.0)
     ν_m = _get_kwarg(:nu_m,kwargs,-0.1)
@@ -45,6 +46,10 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     # Mesh strategy
     strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
     strategy = WeakForms.MeshStrategy{Symbol(strategyName)}()
+
+    # Mesh strategy
+    couplingName = _get_kwarg(:coupling,kwargs,"strong")
+    coupling = WeakForms.Coupling{Symbol(couplingName)}()
 
     # Define BC functions
     println("Defining Boundary conditions")
@@ -89,6 +94,13 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
       α_fluid = α_m; α_solid = α_m; α_Γi = α_m
     end
 
+    # Compute interface element size (if weak coupling)
+    if ( typeof(coupling) == WeakForms.Coupling{:weak} )
+      h_Γi = cell_measure(trian_Γi,trian_Γi)
+    else
+      h_Γi = 0.0
+    end
+
     # Quadratures
     println("Defining quadratures")
     order = _get_kwarg(:order,kwargs,2)
@@ -126,7 +138,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     fsi_Γi_params = Dict("n"=>n_Γi,
                          "E"=>E_m,
                          "ν"=>ν_m,
-                         "α"=>α_Γi)
+                         "α"=>α_Γi,
+                         "gamma"=>γ_f,
+                         "h"=>h_Γi)
 
     # FSI problem
     println("Defining FSI operator")
