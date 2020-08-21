@@ -150,14 +150,14 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # FSI problem
   println("Defining FSI operator")
-  res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,t,x,xt,y,fsi_f_params)
-  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,x,xt,dx,y,fsi_f_params)
-  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,fsi_f_params)
-  res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,t,x,xt,y,fsi_s_params)
-  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,x,xt,dx,y,fsi_s_params)
-  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,fsi_s_params)
-  res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,x,y,fsi_Γi_params)
-  jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,x,dx,y,fsi_Γi_params)
+  res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,coupling,t,x,xt,y,fsi_f_params)
+  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,coupling,x,xt,dx,y,fsi_f_params)
+  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,coupling,x,xt,dxt,y,fsi_f_params)
+  res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,coupling,t,x,xt,y,fsi_s_params)
+  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,coupling,x,xt,dx,y,fsi_s_params)
+  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,coupling,x,xt,dxt,y,fsi_s_params)
+  res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,coupling,x,y,fsi_Γi_params)
+  jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,fsi_Γi_params)
   t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, trian_fluid, quad_fluid)
   t_FSI_Ωs = FETerm(res_FSI_Ωs, jac_FSI_Ωs, jac_t_FSI_Ωs, trian_solid, quad_solid)
   t_FSI_Γi = FETerm(res_FSI_Γi,jac_FSI_Γi,trian_Γi,quad_Γi)
@@ -508,19 +508,19 @@ function get_FE_spaces(
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uw_FSI_f = TrialFESpace(Vu_FSI,bconds[:ST_Vu_values])
-  Uu_FSI_f = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_f_values])
-  Uv_FSI_f = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_f_values])
-  Uu_FSI_s = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_s_values])
-  Uv_FSI_s = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_s_values])
+  Uw_FSI_f = TrialFESpace(Vu_FSI_f,bconds[:ST_Vu_values])
+  Uu_FSI_f = TransientTrialFESpace(Vu_FSI_f,bconds[:FSI_Vu_f_values])
+  Uv_FSI_f = TransientTrialFESpace(Vv_FSI_f,bconds[:FSI_Vv_f_values])
+  Uu_FSI_s = TransientTrialFESpace(Vu_FSI_s,bconds[:FSI_Vu_s_values])
+  Uv_FSI_s = TransientTrialFESpace(Vv_FSI_s,bconds[:FSI_Vv_s_values])
   P = TrialFESpace(Q)
 
   # Multifield FE Spaces
   fe_spaces = (
     Y_ST = MultiFieldFESpace([Vw_ST,Vu_ST,Vv_ST,Q]),
     X_ST = MultiFieldFESpace([Uw_ST,Uu_ST,Uv_ST,P]),
-    Y_FSI = MultiFieldFESpace([Vw_FSI,Vu_FSI,Vv_FSI,Q]),
-    X_FSI = TransientMultiFieldFESpace([Uw_FSI,Uu_FSI,Uv_FSI,P])
+    Y_FSI = MultiFieldFESpace([Vw_FSI_f,Vu_FSI_f,Vv_FSI_f,Vu_FSI_s,Vv_FSI_s,Q]),
+    X_FSI = TransientMultiFieldFESpace([Uw_FSI_f,Uu_FSI_f,Uv_FSI_f,Uu_FSI_s,Uv_FSI_s,P])
   )
 end
 
