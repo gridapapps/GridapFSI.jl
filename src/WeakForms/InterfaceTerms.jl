@@ -28,9 +28,9 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
   ψ, ϕ, φ, q = y
   - α * (ϕ ⋅  (n⋅∇(w)))
 end
-function a_FSI_Nitsche_ϕ_Γi(x,y,n,α)
-uf, us, vf, vs, pf = x
-ϕf, ϕs, φf, φs, qf = y
+function a_FSI_Nitsche_ϕ_Γi(x,y,n,γ,h)
+uf, vf, pf, us, vs = x
+ϕf, φf, qf, ϕs, φs = y
 u_jump = uf.inward - us.outward
 v_jump = vf.inward - vs.outward
 p = pf.inward
