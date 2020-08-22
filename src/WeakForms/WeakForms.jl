@@ -256,6 +256,6 @@ function fsi_jacobian_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling
   x_f = w_f, u_f, v_f, p
   y_f = ψ_f, ϕ_f, φ_f, q
   fsi_jacobian_Γi(strategy,x_f,dx_f,y_f,params) +
-  a_FSI_Nitsche_ϕ_Γi([du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["γ"],params["h"])
+  da_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["γ"],params["h"])
 end
 end

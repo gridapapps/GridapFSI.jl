@@ -75,3 +75,18 @@ function da_FSI_dx_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,α)
   ψ, ϕ, φ, q = y
   - α * ( ϕ ⋅  (n⋅∇(dw)) )
 end
+function da_FSI_Nitsche_ϕ_Γi(x,dx,y,n,γ,h)
+  uf, vf, pf, us, vs = x
+  duf, dvf, dpf, dus, dvs = dx
+  ϕf, φf, qf, ϕs, φs = y
+  du_jump = duf.inward - dus.outward
+  dv_jump = dvf.inward - dvs.outward
+  dp = dpf.inward
+  ϕ_jump = ϕf.inward - ϕs.outward
+  φ_jump = φf.inward - φs.outward
+  q = qf.inward
+  (γ*μ/h*(ϕ_jump⋅du_jump))   + (γ*μ/h*(φ_jump⋅dv_jump))
+  - (φ_jump ⋅ (n⋅dPf_dev(μ,uf.inward,duf.inward,vf.inward)))
+  - (φ_jump ⋅ (n⋅Pf_dev(μ,uf.inward,dvf.inward))) + (φ_jump⋅(n*dp))
+  - ((n⋅Pf_dev(μ,ϕf.inward,φf.inward)) ⋅ dv_jump) - ((n*q) ⋅ dv_jump)
+  end
