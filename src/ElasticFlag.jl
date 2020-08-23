@@ -80,7 +80,14 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
   trian = Triangulation(model)
   trian_solid = Triangulation(model_solid)
   trian_fluid = Triangulation(model_fluid)
-  trian_Γi = BoundaryTriangulation(model_fluid,"interface")
+  function Γi_triangulation(coupling)
+    if typeof(coupling) == WeakForms.Coupling{:weak}
+      InterfaceTriangulation(model_fluid,model_solid)
+    else
+      BoundaryTriangulation(model_fluid,"interface")
+    end
+  end
+  trian_Γi = Γi_triangulation(coupling)
   n_Γi = get_normal_vector(trian_Γi)
 
   # Compute cell area (auxiliar quantity for mesh motion eq.)
@@ -96,7 +103,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # Compute interface element size (if weak coupling)
   if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-    hΓᵢ = cell_measure(trian_Γi,trian_Γi)
+    trian_boundary_Γi = get_left_boundary(trian_Γi)
+    hΓᵢ = reindex(cell_measure(trian_boundary_Γi,trian),trian_boundary_Γi)
   else
     hΓᵢ = 0.0
   end
@@ -143,8 +151,9 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     "n"=>n_Γi,
     "E"=>E_m,
     "ν"=>ν_m,
+    "μ"=>μ_f,
     "α"=>α_Γi,
-    "gamma"=>γ_f,
+    "γ"=>γ_f,
     "h"=>hΓᵢ
     )
 
@@ -241,13 +250,14 @@ end
 
 function get_boundary_conditions(
   problem::Problem{:elasticFlag},
-  strategy::WeakForms.MeshStrategy,
+  strategy::WeakForms.MeshStrategy{:biharmonic},
   coupling::WeakForms.Coupling{:weak},
   u_in,
   u_noSlip
   )
   boundary_conditions = (
     # Tags
+    FSI_Vw_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
     FSI_Vu_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
     FSI_Vv_f_tags = ["inlet", "noSlip", "cylinder"],
     FSI_Vu_s_tags = ["fixed"],
@@ -255,6 +265,7 @@ function get_boundary_conditions(
     ST_Vu_tags = ["inlet", "noSlip", "cylinder","interface","outlet"],
     ST_Vv_tags = ["inlet", "noSlip", "cylinder","interface"],
     # Values,
+    FSI_Vw_f_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
     FSI_Vu_f_values = [u_noSlip, u_noSlip, u_noSlip, u_noSlip],
     FSI_Vv_f_values = [u_in, u_noSlip, u_noSlip],
     FSI_Vu_s_values = [u_noSlip],
@@ -434,7 +445,7 @@ function get_FE_spaces(
     reffe=:Lagrangian,
     order=order,
     conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_f_tags]
+    dirichlet_tags=bconds[:FSI_Vw_f_tags]
     )
   Vu_FSI_f = TestFESpace(
     model=model_fluid,
@@ -508,7 +519,7 @@ function get_FE_spaces(
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uw_FSI_f = TrialFESpace(Vu_FSI_f,bconds[:ST_Vu_values])
+  Uw_FSI_f = TrialFESpace(Vu_FSI_f,bconds[:FSI_Vw_f_values])
   Uu_FSI_f = TransientTrialFESpace(Vu_FSI_f,bconds[:FSI_Vu_f_values])
   Uv_FSI_f = TransientTrialFESpace(Vv_FSI_f,bconds[:FSI_Vv_f_values])
   Uu_FSI_s = TransientTrialFESpace(Vu_FSI_s,bconds[:FSI_Vu_s_values])
