@@ -28,7 +28,7 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
   ψ, ϕ, φ, q = y
   - α * (ϕ ⋅  (n⋅∇(w)))
 end
-function a_FSI_Nitsche_ϕ_Γi(x,y,n,γ,h)
+function a_FSI_Nitsche_ϕ_Γi(x,y,n,μ,γ,h)
 uf, vf, pf, us, vs = x
 ϕf, φf, qf, ϕs, φs = y
 u_jump = uf.inward - us.outward
@@ -75,7 +75,7 @@ function da_FSI_dx_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,n,α)
   ψ, ϕ, φ, q = y
   - α * ( ϕ ⋅  (n⋅∇(dw)) )
 end
-function da_FSI_Nitsche_ϕ_Γi(x,dx,y,n,γ,h)
+function da_FSI_Nitsche_ϕ_Γi(x,dx,y,n,μ,γ,h)
   uf, vf, pf, us, vs = x
   duf, dvf, dpf, dus, dvs = dx
   ϕf, φf, qf, ϕs, φs = y
