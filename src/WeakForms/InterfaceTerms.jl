@@ -28,18 +28,21 @@ function a_FSI_ϕ_Γi(strategy::MeshStrategy{:biharmonic},x,y,n,α)
   ψ, ϕ, φ, q = y
   - α * (ϕ ⋅  (n⋅∇(w)))
 end
+@law jump_law(af,as) = af.inward - as.outward
 function a_FSI_Nitsche_ϕ_Γi(x,y,n,μ,γ,h)
 uf, vf, pf, us, vs = x
 ϕf, φf, qf, ϕs, φs = y
-u_jump = uf.inward - us.outward
-v_jump = vf.inward - vs.outward
 p = pf.inward
 q = qf.inward
-ϕ_jump = ϕf.inward - ϕs.outward
-φ_jump = φf.inward - φs.outward
-(γ*μ/h*(ϕ_jump⋅u_jump))   + (γ*μ/h*(φ_jump⋅v_jump))
-- (φ_jump ⋅ (n⋅Pf_dev(μ,uf.inward,vf.inward))) + (φ_jump⋅(n*p))
-- ((n⋅Pf_dev(μ,ϕf.inward,φf.inward)) ⋅ v_jump) - ((n*q) ⋅ v_jump)
+γ*μ/h*(ϕf.inward⋅uf.inward) - γ*μ/h*(ϕf.inward⋅us.outward) - γ*μ/h*(ϕs.outward⋅uf.inward) + γ*μ/h*(ϕs.outward⋅uf.inward)
++ γ*μ/h*(φf.inward⋅vf.inward) - γ*μ/h*(φf.inward⋅vs.outward) - γ*μ/h*(φs.outward⋅vf.inward) + γ*μ/h*(φs.outward⋅vf.inward)
+- φf.inward ⋅ (n⋅Pf_dev(μ,uf,vf).inward) + φs.outward ⋅ (n⋅Pf_dev(μ,uf,vf).inward)
++ φf.inward ⋅ (n*Pf_vol(uf,pf).inward) - φs.outward ⋅ (n*Pf_vol(uf,pf).inward)
++ ((n⋅Pf_dev(μ,uf,φf).inward) ⋅ vf.inward) - (n⋅Pf_dev(μ,uf,φf).inward) ⋅ vs.outward
+- (n*Pf_vol(uf,qf).inward) ⋅ vf.inward + (n*Pf_vol(uf,qf).inward) ⋅ vs.outward
+#(γ*μ/h*(jump_law(ϕf,ϕs)⋅jump_law(uf,us)))  + (γ*μ/h*(jump_law(φf,φs)⋅jump_law(vf,vs))
+#- (jump_law(φf,φs) ⋅ (n⋅Pf_dev(μ,uf.inward,vf.inward))) + (jump_law(φf,φs)⋅(n*p))
+#- ((n⋅Pf_dev(μ,ϕf.inward,φf.inward)) ⋅ jump_law(vf,vs)) - ((n*q) ⋅ jump_law(vf,vs))
 end
 
 

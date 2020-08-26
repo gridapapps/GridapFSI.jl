@@ -237,21 +237,21 @@ function fsi_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling
   wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
   dw_f, du_f, dv_f, dp, du_s, dv_s = dx
   ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
-  x_s = u_s, v_s
-  xt_s = ut_s, vt_s
-  dx_s = du_s, dv_s
-  y_s = ϕ_s, φ_s
-  fsi_jacobian_Ωs(strategy,x_s,xt_s,dx_s,y_S,params)
+  x_s = w_f, u_s, v_s, p
+  dx_s = dw_f, du_s, dv_s, dp
+  xt_s = wt_f, ut_s, vt_s, pt
+  y_s = ψ_f, ϕ_s, φ_s, q
+  fsi_jacobian_Ωs(strategy,x_s,xt_s,dx_s,y_s,params)
 end
 function fsi_jacobian_t_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dxt,y,params)
   w_f, u_f, v_f, p, u_s, v_s = x
   wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
   dwt_f, dut_f, dvt_f, dpt, dut_s, dvt_s = dxt
   ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
-  x_s = u_s, v_s
-  xt_s = ut_s, vt_s
-  dxt_s = dut_s, dvt_s
-  y_s = ϕ_s, φ_s
+  x_s = w_f, u_s, v_s, p
+  dxt_s = dwt_f, dut_s, dvt_s, dpt
+  xt_s = wt_f, ut_s, vt_s, pt
+  y_s = ψ_f, ϕ_s, φ_s, q
   fsi_jacobian_t_Ωs(strategy,x_s,xt_s,dxt_s,y_s,params)
 end
 function fsi_residual_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,y,params)
