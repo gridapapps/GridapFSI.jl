@@ -229,7 +229,7 @@ println("Stokes L2-norm p: ", epl2_ST)
 # Solve FSI problem
 @timeit "FSI problem" begin
 println("Solving FSI problem")
-xh0 = interpolate_everywhere(X_FSI(0.0),[u(0.0),v(0.0),p(0.0)])
+xh0 = interpolate_everywhere([u(0.0),v(0.0),p(0.0)],X_FSI(0.0))
 nls = NLSolver(
 show_trace = true,
 method = :newton,

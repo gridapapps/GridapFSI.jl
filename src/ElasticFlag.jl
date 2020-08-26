@@ -192,7 +192,7 @@ end
 # Solve FSI problem
 @timeit "FSI problem" begin
 println("Solving FSI problem")
-xh0  = interpolate(X_FSI(0.0),xh)
+xh0  = interpolate(xh,X_FSI(0.0))
 nls = NLSolver(
   show_trace = true,
   method = :newton,
@@ -579,9 +579,9 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     println("============================")
 
     ## Get the solution at n+θ (where velocity and pressure are balanced)
-    uh = xh.blocks[uvpindex[1]]
-    vh = xh.blocks[uvpindex[2]]
-    ph = xh.blocks[uvpindex[3]]
+    uh = xh[uvpindex[1]]
+    vh = xh[uvpindex[2]]
+    ph = xh[uvpindex[3]]
     uh_Γc = restrict(uh, trian_Γc)
     vh_Γc = restrict(vh, trian_Γc)
     ph_Γc = restrict(ph, trian_Γc)

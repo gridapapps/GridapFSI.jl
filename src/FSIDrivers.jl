@@ -32,9 +32,9 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
         for (i, (xh, t)) in enumerate(sol)
             println("STEP: $i, TIME: $t")
             println("============================")
-            uh = restrict(xh.blocks[1],trian)
-            vh = restrict(xh.blocks[2],trian)
-						ph = restrict(xh.blocks[3],trian)
+            uh = restrict(xh[1],trian)
+            vh = restrict(xh[2],trian)
+						ph = restrict(xh[3],trian)
             pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",
