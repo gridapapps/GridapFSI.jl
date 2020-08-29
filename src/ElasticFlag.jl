@@ -628,9 +628,9 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
 
     # Write to PVD
     if(is_vtk)
-      uh = xh.blocks[uvpindex[1]]
-      vh = xh.blocks[uvpindex[2]]
-      ph = xh.blocks[uvpindex[3]]
+      uh = xh[uvpindex[1]]
+      vh = xh[uvpindex[2]]
+      ph = xh[uvpindex[3]]
       pvd[t] = createvtk(
       trian,
       filePath * "_$t.vtu",
