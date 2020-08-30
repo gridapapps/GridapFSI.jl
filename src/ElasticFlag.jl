@@ -96,7 +96,11 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
     vols = cell_measure(trian_solid,trian)
     α_fluid = α_m * reindex(volf,trian_fluid)
     α_solid = α_m * reindex(vols,trian_solid)
-    α_Γi = α_m * reindex(volf,trian_Γi)
+    if ( typeof(coupling) == WeakForms.Coupling{:weak} )
+      α_Γi = α_m * reindex(volf,get_left_boundary(trian_Γi))
+    else
+      α_Γi = α_m * reindex(volf,trian_Γi)
+    end
   else
     α_fluid = α_m; α_solid = α_m; α_Γi = α_m
   end
