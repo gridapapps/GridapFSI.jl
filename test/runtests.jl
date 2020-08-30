@@ -12,5 +12,6 @@ using Test
   @testset "ElasticFlag.jl" begin
     main()
     main(strategy="biharmonic")
+    main(coupling="weak",strategy="biharmonic",is_vtk=true)
   end
 end
