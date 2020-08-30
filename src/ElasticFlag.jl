@@ -120,7 +120,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # Test FE Spaces
   println("Defining FE spaces")
-  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(problem,strategy,coupling,model,model_fluid,order,bconds)
+  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(problem,strategy,coupling,model,
+  model_fluid,model_solid,order,bconds)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
@@ -282,6 +283,7 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:strong},
   model,
   model_fluid,
+  model_solid,
   order,
   bconds)
 
@@ -350,6 +352,7 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:strong},
   model,
   model_fluid,
+  model_solid,
   order,
   bconds)
 
@@ -437,6 +440,7 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:weak},
   model,
   model_fluid,
+  model_solid,
   order,
   bconds)
 
@@ -457,7 +461,7 @@ function get_FE_spaces(
     dirichlet_tags=bconds[:FSI_Vu_f_tags]
     )
   Vv_FSI_f = TestFESpace(
-    model=model,
+    model=model_fluid,
     valuetype=VectorValue{2,Float64},
     reffe=:Lagrangian,
     order=order,
@@ -465,7 +469,7 @@ function get_FE_spaces(
     dirichlet_tags=bconds[:FSI_Vv_f_tags]
     )
   Vu_FSI_s = TestFESpace(
-    model=model_fluid,
+    model=model_solid,
     valuetype=VectorValue{2,Float64},
     reffe=:Lagrangian,
     order=order,
@@ -473,7 +477,7 @@ function get_FE_spaces(
     dirichlet_tags=bconds[:FSI_Vu_s_tags]
     )
   Vv_FSI_s = TestFESpace(
-    model=model,
+    model=model_solid,
     valuetype=VectorValue{2,Float64},
     reffe=:Lagrangian,
     order=order,
@@ -520,7 +524,7 @@ function get_FE_spaces(
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
   Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uw_FSI_f = TrialFESpace(Vu_FSI_f,bconds[:FSI_Vw_f_values])
+  Uw_FSI_f = TrialFESpace(Vw_FSI_f,bconds[:FSI_Vw_f_values])
   Uu_FSI_f = TransientTrialFESpace(Vu_FSI_f,bconds[:FSI_Vu_f_values])
   Uv_FSI_f = TransientTrialFESpace(Vv_FSI_f,bconds[:FSI_Vv_f_values])
   Uu_FSI_s = TransientTrialFESpace(Vu_FSI_s,bconds[:FSI_Vu_s_values])
@@ -567,14 +571,14 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
 
   # Aux function
   traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pf_dev(μ,u,v)  + WeakForms.Pf_vol(u,p) * n
-  function traction_interface(coupling,n,u,v,p)
-    f = if (coupling == WeakForms.Coupling{:weak})
+  function traction_closure(coupling,n,u,v,p)
+    if typeof(coupling) == WeakForms.Coupling{:weak}
       traction_boundary(n,u,v,p).⁺
     else
       traction_boundary(n,u,v,p)
     end
-    return f
   end
+  traction_interface(n,u,v,p) = traction_closure(coupling,n,u,v,p)
 
   ## Initialize arrays
   tpl = Real[]
@@ -618,7 +622,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     FDc, FLc = sum(integrate(traction_boundary(n_Γc,uhθ_Γc,vhθ_Γc,phθ_Γc), trian_Γc, quad_Γc))
 
     # Integrate on the interface
-    FDi, FLi = sum(integrate(traction_interface(coupling,n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), trian_Γi, quad_Γi))
+    FDi, FLi = sum(integrate(traction_interface(n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), trian_Γi, quad_Γi))
 
     FD = FDc + FDi
     FL = FLc + FLi

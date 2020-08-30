@@ -34,21 +34,11 @@ uf_Γ, vf_Γ, pf_Γ, us_Γ, vs_Γ = x
 ϕf_Γ, φf_Γ, qf_Γ, ϕs_Γ, φs_Γ = y
 uf, vf, pf, us, vs = uf_Γ.⁺, vf_Γ.⁺, pf_Γ.⁺, us_Γ.⁻, vs_Γ.⁻
 ϕf, φf, qf, ϕs, φs = ϕf_Γ.⁺, φf_Γ.⁺, qf_Γ.⁺, ϕs_Γ.⁻, φs_Γ.⁻
-#γ*μ/h*(ϕf-ϕs)⋅(uf-us)
 γ*μ/h*(φf-φs)⋅(vf-vs)
 - ((φf-φs) ⋅ (n⋅Pf_dev(μ,uf_Γ,vf_Γ).⁺))
 + ((φf-φs) ⋅ (n⋅Pf_vol(uf_Γ,pf_Γ).⁺))
 + ((n⋅Pf_dev(μ,uf_Γ,φf_Γ).⁺) ⋅ (vf-vs))
 - ((n⋅Pf_vol(uf_Γ,qf_Γ).⁺) ⋅ (vf-vs))
-# γ*μ/h*(ϕf.inward⋅uf.inward) - γ*μ/h*(ϕf.inward⋅us.outward) - γ*μ/h*(ϕs.outward⋅uf.inward) + γ*μ/h*(ϕs.outward⋅uf.inward)
-# + γ*μ/h*(φf.inward⋅vf.inward) - γ*μ/h*(φf.inward⋅vs.outward) - γ*μ/h*(φs.outward⋅vf.inward) + γ*μ/h*(φs.outward⋅vf.inward)
-# - φf.inward ⋅ (n⋅Pf_dev(μ,uf,vf).inward) + φs.outward ⋅ (n⋅Pf_dev(μ,uf,vf).inward)
-# + φf.inward ⋅ (n*Pf_vol(uf,pf).inward) - φs.outward ⋅ (n*Pf_vol(uf,pf).inward)
-# + ((n⋅Pf_dev(μ,uf,φf).inward) ⋅ vf.inward) - (n⋅Pf_dev(μ,uf,φf).inward) ⋅ vs.outward
-# - (n*Pf_vol(uf,qf).inward) ⋅ vf.inward + (n*Pf_vol(uf,qf).inward) ⋅ vs.outward
-#(γ*μ/h*(jump_law(ϕf,ϕs)⋅jump_law(uf,us)))  + (γ*μ/h*(jump_law(φf,φs)⋅jump_law(vf,vs))
-#- (jump_law(φf,φs) ⋅ (n⋅Pf_dev(μ,uf.inward,vf.inward))) + (jump_law(φf,φs)⋅(n*p))
-#- ((n⋅Pf_dev(μ,ϕf.inward,φf.inward)) ⋅ jump_law(vf,vs)) - ((n*q) ⋅ jump_law(vf,vs))
 end
 
 
@@ -91,7 +81,6 @@ function da_FSI_Nitsche_ϕ_Γi(x,dx,y,n,μ,γ,h)
   uf, vf, pf, us, vs = uf_Γ.⁺, vf_Γ.⁺, pf_Γ.⁺, us_Γ.⁻, vs_Γ.⁻
   duf, dvf, dpf, dus, dvs = duf_Γ.⁺, dvf_Γ.⁺, dpf_Γ.⁺, dus_Γ.⁻, dvs_Γ.⁻
   ϕf, φf, qf, ϕs, φs = ϕf_Γ.⁺, φf_Γ.⁺, qf_Γ.⁺, ϕs_Γ.⁻, φs_Γ.⁻
-  #γ*μ/h*(ϕf-ϕs)⋅(duf-dus)
   γ*μ/h*(φf-φs)⋅(dvf-dvs)
   - ((φf-φs) ⋅ (n⋅dPf_dev_du(μ,uf_Γ,duf_Γ,vf_Γ).⁺))
   - ((φf-φs) ⋅ (n⋅Pf_dev(μ,uf_Γ,dvf_Γ).⁺))
