@@ -257,19 +257,21 @@ end
 function fsi_residual_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,y,params)
   w_f, u_f, v_f, p, u_s, v_s = x
   ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
-  x_Γf = w_f.inward, u_f.inward, v_f.inward, p.inward
-  y_Γf = ψ_f.inward, ϕ_f.inward, φ_f.inward, q.inward
+  x_Γf = w_f.⁺, u_f.⁺, v_f.⁺, p.⁺
+  y_Γf = ψ_f.⁺, ϕ_f.⁺, φ_f.⁺, q.⁺
   fsi_residual_Γi(strategy,x_Γf,y_Γf,params) +
+  a_FSI_ψ_Γi(strategy,x_Γf,y_Γf,params["n"],params["α"]) +
   a_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["μ"],params["γ"],params["h"])
 end
 function fsi_jacobian_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,dx,y,params)
   w_f, u_f, v_f, p, u_s, v_s = x
   dw_f, du_f, dv_f, dp, du_s, dv_s = dx
   ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
-  x_Γf = w_f.inward, u_f.inward, v_f.inward, p.inward
-  dx_Γf = dw_f.inward, du_f.inward, dv_f.inward, dp.inward
-  y_Γf = ψ_f.inward, ϕ_f.inward, φ_f.inward, q.inward
+  x_Γf = w_f.⁺, u_f.⁺, v_f.⁺, p.⁺
+  dx_Γf = dw_f.⁺, du_f.⁺, dv_f.⁺, dp.⁺
+  y_Γf = ψ_f.⁺, ϕ_f.⁺, φ_f.⁺, q.⁺
   fsi_jacobian_Γi(strategy,x_Γf,dx_Γf,y_Γf,params) +
+  da_FSI_dx_ψ_Γi(strategy,x_Γf,dx_Γf,y_Γf,params["n"],params["α"]) +
   da_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["μ"],params["γ"],params["h"])
 end
 end

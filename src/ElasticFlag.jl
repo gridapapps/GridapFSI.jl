@@ -222,6 +222,7 @@ out_params = Dict(
   "sol"=>sol_FSI,
   "filePath"=>filePath,
   "is_vtk"=>is_vtk,
+  "coupling"=>coupling,
   )
 output = computeOutputs(problem,strategy;params=out_params)
 
@@ -553,6 +554,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
   θ = params["θ"]
   filePath = params["filePath"]
   is_vtk = params["is_vtk"]
+  coupling = params["coupling"]
   if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
     uvpindex = [2,3,4]
   else
@@ -562,6 +564,17 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
   trian_Γc = BoundaryTriangulation(model, "cylinder")
   quad_Γc = CellQuadrature(trian_Γc, bdegree)
   n_Γc = get_normal_vector(trian_Γc)
+
+  # Aux function
+  traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pf_dev(μ,u,v)  + WeakForms.Pf_vol(u,p) * n
+  function traction_interface(coupling,n,u,v,p)
+    f = if (coupling == WeakForms.Coupling{:weak})
+      traction_boundary(n,u,v,p).⁺
+    else
+      traction_boundary(n,u,v,p)
+    end
+    return f
+  end
 
   ## Initialize arrays
   tpl = Real[]
@@ -602,17 +615,11 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     phθ_Γi = θ*ph_Γi + (1.0-θ)*phn_Γi
 
     # Integrate on the cylinder
-    FDc, FLc = sum(integrate(
-    (n_Γc ⋅ WeakForms.Pf_dev(μ,uhθ_Γc,vhθ_Γc)  + WeakForms.Pf_vol(uhθ_Γc,phθ_Γc) * n_Γc),
-    trian_Γc,
-    quad_Γc,
-    ))
+    FDc, FLc = sum(integrate(traction_boundary(n_Γc,uhθ_Γc,vhθ_Γc,phθ_Γc), trian_Γc, quad_Γc))
+
     # Integrate on the interface
-    FDi, FLi = sum(integrate(
-    (n_Γi ⋅ WeakForms.Pf_dev(μ,uhθ_Γi,vhθ_Γi)  + WeakForms.Pf_vol(uhθ_Γi,phθ_Γi) * n_Γi),
-    trian_Γi,
-    quad_Γi,
-    ))
+    FDi, FLi = sum(integrate(traction_interface(coupling,n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), trian_Γi, quad_Γi))
+
     FD = FDc + FDi
     FL = FLc + FLi
 
