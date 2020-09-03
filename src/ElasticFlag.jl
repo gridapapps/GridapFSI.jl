@@ -13,6 +13,16 @@ Um=2.0,
 Re=200,
 rho_s=1.0e-3
 E_s=5.6e6
+
+It supports the following mesh motion strategies:
+ - Laplacian
+ - Linear elasticity
+ - Noehookean elasticity (not tested)
+ - Biharmonic (Laplacian squared)
+
+The fluid and structure can be strongly coupled, i.e. same variational space for
+fluid and solid displacements and velocities, or weakly coupled with different
+variational spaces and coupling enforced through Nitche's method.
 """
 function execute(problem::Problem{:elasticFlag}; kwargs...)
 
