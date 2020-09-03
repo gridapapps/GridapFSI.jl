@@ -7,6 +7,7 @@ using Gridap.Arrays
 using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
+using GridapEmbedded
 using GridapFSI.WeakForms
 using TimerOutputs
 using WriteVTK
@@ -22,6 +23,7 @@ export execute
 struct Problem{Kind} end
 
 include("ElasticFlag.jl")
+include("ElasticFlagAggFEM.jl")
 include("Analytical.jl")
 
 execute(problem::Problem; kwargs...) = @notimplemented("The driver for problem: $problem is not implemented")
