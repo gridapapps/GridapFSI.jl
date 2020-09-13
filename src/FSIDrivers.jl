@@ -4,6 +4,7 @@ using Gridap
 using Gridap.Helpers
 using Gridap.Geometry
 using Gridap.Arrays
+using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
 using GridapFSI.WeakForms
@@ -11,6 +12,7 @@ using TimerOutputs
 using WriteVTK
 using LineSearches: BackTracking, HagerZhang
 using ForwardDiff
+using Test
 
 import GridapODEs.TransientFETools: ∂t
 
@@ -30,9 +32,9 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
         for (i, (xh, t)) in enumerate(sol)
             println("STEP: $i, TIME: $t")
             println("============================")
-            uh = restrict(xh.blocks[1],trian)
-            vh = restrict(xh.blocks[2],trian)
-						ph = restrict(xh.blocks[3],trian)
+            uh = restrict(xh[1],trian)
+            vh = restrict(xh[2],trian)
+						ph = restrict(xh[3],trian)
             pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",

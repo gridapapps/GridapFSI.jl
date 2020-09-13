@@ -6,7 +6,7 @@ using TimerOutputs
 
 export main
 
-include("WeakForms.jl")
+include("WeakForms/WeakForms.jl")
 include("FSIDrivers.jl")
 
 using GridapFSI.FSIDrivers

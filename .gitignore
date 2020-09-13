@@ -1,8 +1,12 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
+*.vtu
+*.pvd
 .DS_Store
 /Manifest.toml
 /dev/
 /docs/build/
 /docs/site/
+.vs/
+.vscode
