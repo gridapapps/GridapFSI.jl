@@ -1,3 +1,12 @@
+function a_ST_Nitsche_Γd(x,y,n,μ,γ,h,vD)
+  v, p = x
+  φ, q = y
+  penalty = γ*μ/h*φ⋅(v-vD)
+  integration_by_parts = - φ ⋅ ( n⋅σ_dev(μ,ε(v)) - n*p )
+  nitsche = (n⋅σ_dev(μ,ε(φ))) ⋅ (v-vD) - (n*q) ⋅ (v-vD)
+  penalty + integration_by_parts + nitsche
+end
+
 function a_FSI_ϕ_Γi(strategy::MeshStrategy{:laplacian},x,y,n,α)
   u, v, p = x
   ϕ, φ, q = y

@@ -57,6 +57,9 @@ function stokes_jacobian(strategy::MeshStrategy{:biharmonic},dx,y,μ::Real)
     _strategy = MeshStrategy{:linearElasticity}()
     (ε(ψ) ⊙ σ_dev(μ,ε(dw))) + stokes_jacobian(_strategy,[du,dv,dp],[ϕ,φ,q],μ)
 end
+function stokes_residual_Γd(x,y,n,μ::Real,γ::Real,h,vD)
+  a_ST_Nitsche_Γd(x,y,n,μ,γ,h,vD)
+end
 
 
 # FSI (fluid)

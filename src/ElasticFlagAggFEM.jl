@@ -43,7 +43,8 @@ function execute(problem::Problem{:elasticFlagAggFem}; kwargs...)
   p2 = plane(x0=C1,v=-n2)
   p3 = plane(x0=C2,v=n1)
   p4 = plane(x0=C2,v=n2)
-  flag = intersect(intersect(p1,p2),intersect(p3,p4))#(quadrilateral(x0=C1,d1=d1,d2=d2))
+  flag = intersect(intersect(p1,p2),intersect(p3,p4))
+  #flag = !(quadrilateral(x0=C1,d1=d1,d2=d2))
   # Fluid and solid domains
   solid_geo = setdiff(flag,cylinder,name="solid")
   not_fluid = union(cylinder,flag)
@@ -52,13 +53,16 @@ function execute(problem::Problem{:elasticFlagAggFem}; kwargs...)
   # Background model
   pmin = Point(0.0,0.0)
   pmax = Point(2.2,0.41)
-  partition = (100,40)
+  partition = (80,40)
   bgmodel = CartesianDiscreteModel(pmin,pmax,partition)
-  
+  dp = pmax - pmin
+  h = dp[1]/80
+
   # Fluid and solid models
-  cutgeo = cut(bgmodel,union(fluid_geo,solid_geo))
+  #cutgeo = cut(bgmodel,union(fluid_geo,solid_geo))
+  cutgeo = cut(bgmodel,fluid_geo)
   model_fluid = DiscreteModel(cutgeo,"fluid")
-  model_solid = DiscreteModel(cutgeo,"solid")
+  #model_solid = DiscreteModel(cutgeo,"solid")
   
   # Boundary labels
   labels = get_face_labeling(bgmodel)
@@ -77,7 +81,7 @@ function execute(problem::Problem{:elasticFlagAggFem}; kwargs...)
   println("Defining triangulations")
   trian = Triangulation(bgmodel)
   trian_Ω = Triangulation(cutgeo)
-  trian_solid = Triangulation(model_solid)
+  #trian_solid = Triangulation(model_solid)
   trian_fluid = Triangulation(model_fluid)
   #trian_Γi = InterfaceTriangulation(model_fluid,model_solid)
   trian_Γi = EmbeddedBoundary(cutgeo)
@@ -90,7 +94,8 @@ function execute(problem::Problem{:elasticFlagAggFem}; kwargs...)
   order = _get_kwarg(:order,kwargs,2)
   degree = 2*order
   bdegree = 2*order
-  quad_solid = CellQuadrature(trian_solid,degree)
+  quad_Ω = CellQuadrature(trian_Ω,2*order)
+  #quad_solid = CellQuadrature(trian_solid,degree)
   quad_fluid = CellQuadrature(trian_fluid,degree)
   quad_Γi = CellQuadrature(trian_Γi,bdegree)
 
@@ -135,13 +140,42 @@ function execute(problem::Problem{:elasticFlagAggFem}; kwargs...)
   )
   V = AgFEMSpace(Vf,aggregates,Vfser)
   Q = AgFEMSpace(Qf,aggregates)
-  U = TrialFESpace(V)
+  U = TrialFESpace(V,[u_in(0.0),u_noSlip(0.0)])
   P = TrialFESpace(Q)
   Y = MultiFieldFESpace([V,Q])
   X = MultiFieldFESpace([U,P])
 
   # Stokes operator
   println("Defining Stokes operator")
-  res_ST(x,y) = WeakForms.stokes_residual(nothing,x,y,μ_f,VectorValue(0.0,0.0))
+  function A_Ω(x,y)
+    u, p = x
+    v, q = y
+    ∇(v)⊙∇(u) - q*(∇⋅u) - (∇⋅v)*p
+  end
+  function B_Ω(y)
+    v, q = y
+    0.0
+  end
+  γ = order*(order+1)
+  function A_Γd(x,y)
+    u, p = x
+    v, q = y
+    (γ/h)*v⋅u - v⋅(n_Γi⋅∇(u)) - (n_Γi⋅∇(v))⋅u + (p*n_Γi)⋅v + (q*n_Γi)⋅u
+  end
+  function B_Γd(y)
+    v, q = y
+    (γ/h)*v⋅u_noSlip(0.0) - (n_Γi⋅∇(v))⋅u_noSlip(0.0) + (q*n_Γi)⋅u_noSlip(0.0)
+  end
+  t_Ω = LinearFETerm(A_Ω,trian_Ω,quad_Ω)
+  t_Γd = AffineFETerm(A_Γd,B_Γd,trian_Γi,quad_Γi)
+  # res_ST(x,y) = WeakForms.stokes_residual(x,y,μ_f,VectorValue(0.0,0.0))
+  # res_ST_Γd(x,y) = WeakForms.stokes_residual_Γd(x,y,n_Γi,μ_f,γ_f,hΓᵢ,u_noSlip(0.0))
+  # jac_ST_Γd(x,dx,y) = WeakForms.stokes_residual_Γd(dx,y,n_Γi,μ_f,γ_f,hΓᵢ,u_noSlip(0.0))
+  # t_ST_Ωf = FETerm(res_ST,trian_fluid,quad_fluid)
+  # t_ST_Γd = LinearFETerm(res_ST_Γd,trian_Γi,quad_Γi)
+  op_ST = FEOperator(X,Y,t_Ω,t_Γd)#,t_ST_Γd)
 
+  # Solve Stokes problem
+  xh = solve(op_ST)
+  writevtk(trian_fluid,"stokes.vtu",cellfields=["vh"=>restrict(xh[1],trian_fluid),"ph"=>restrict(xh[2],trian_fluid)])
 end
