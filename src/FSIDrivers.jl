@@ -23,6 +23,7 @@ struct Problem{Kind} end
 
 include("ElasticFlag.jl")
 include("Analytical.jl")
+include("Oscillator.jl")
 
 execute(problem::Problem; kwargs...) = @notimplemented("The driver for problem: $problem is not implemented")
 
