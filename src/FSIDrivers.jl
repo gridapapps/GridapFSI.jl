@@ -12,6 +12,7 @@ using TimerOutputs
 using WriteVTK
 using LineSearches: BackTracking, HagerZhang
 using ForwardDiff
+using DifferentialEquations
 using Test
 
 import GridapODEs.TransientFETools: ∂t

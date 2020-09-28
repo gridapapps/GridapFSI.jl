@@ -35,14 +35,17 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   Ωₙ = ωₙ/ωₛ
   ζ = b/(2*sqrt((m+mₐ)*k))
 
-function oscillator(dx,x,p,t)
+function oscillator(x,p,t)
   y, q, dy, dq = x
   y_dot = dy
   q_dot = dq
   Cvy= (-2^π*St*dy*Cx0 + Cy0/q₁*q) * sqrt(1+4*π^2*St^2*dy^2)
   dy_dot = ρ*D^2*L/(m+mₐ)*1.0/(8*π^2*St^2)*Cvy - 2*ζ*Ωₙ*dy - Ωₙ^2*y
   dq_dot = A*dy_dot - ε*(q^2-1)*dq - q
-  dx = y_dot, q_dot, dy_dot, dq_dot
+  dx = [y_dot; q_dot; dy_dot; dq_dot]
 end
+
+prob = ODEProblem(oscillator,[0.0;2.0;0.0;0.0],(0.0,100.0))
+sol=DifferentialEquations.solve(prob)
 
 end
