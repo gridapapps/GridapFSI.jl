@@ -60,30 +60,30 @@ end
 
 
 # FSI (fluid)
-fsi_residual_Ωf(strategy::MeshStrategy,t,x,xt,y,params) =
+fluid_residual_Ω(strategy::MeshStrategy,t,x,xt,y,params) =
     a_FSI_ϕ_Ωf(strategy,x,y,params["E"],params["ν"]) +
     a_FSI_φ_Ωf(x,xt,y,params["μ"],params["ρ"]) +
     a_FSI_q_Ωf(x, y) -
     l_FSI_ϕ_Ωf(strategy,y,params["fu"],t) -
     l_FSI_φ_Ωf(y,params["fv"],t)
-fsi_jacobian_Ωf(strategy::MeshStrategy,x,xt,dx,y,params) =
+fluid_jacobian_Ω(strategy::MeshStrategy,x,xt,dx,y,params) =
     da_FSI_du_ϕ_Ωf(strategy,x,dx,y,params["E"],params["ν"]) +
     da_FSI_du_φ_Ωf(x,xt,dx,y,params["μ"],params["ρ"]) +
     da_FSI_dv_φ_Ωf(x,xt,dx,y,params["μ"],params["ρ"]) +
     da_FSI_dp_φ_Ωf(x,dx,y) +
     da_FSI_du_q_Ωf(x,dx,y) +
     da_FSI_dv_q_Ωf(x,dx,y)
-fsi_jacobian_t_Ωf(strategy::MeshStrategy,x,xt,dxt,y,params) =
+fluid_jacobian_t_Ω(strategy::MeshStrategy,x,xt,dxt,y,params) =
     da_FSI_dut_φ_Ωf(x,dxt,y,params["ρ"]) +
     da_FSI_dvt_φ_Ωf(x,dxt,y,params["ρ"])
 
-fsi_residual_Ωf(strategy::MeshStrategy{:laplacian},t,x,xt,y,params) =
+fluid_residual_Ω(strategy::MeshStrategy{:laplacian},t,x,xt,y,params) =
     a_FSI_ϕ_Ωf(strategy,x,y,params["α"]) +
     a_FSI_φ_Ωf(x,xt,y,params["μ"],params["ρ"]) +
     a_FSI_q_Ωf(x, y) -
     l_FSI_ϕ_Ωf(strategy,y,params["fu"],t) -
     l_FSI_φ_Ωf(y,params["fv"],t)
-fsi_jacobian_Ωf(strategy::MeshStrategy{:laplacian},x,xt,dx,y,params) =
+fluid_jacobian_Ω(strategy::MeshStrategy{:laplacian},x,xt,dx,y,params) =
     a_FSI_ϕ_Ωf(strategy,dx,y,params["α"]) +
     da_FSI_du_φ_Ωf(x,xt,dx,y,params["μ"],params["ρ"]) +
     da_FSI_dv_φ_Ωf(x,xt,dx,y,params["μ"],params["ρ"]) +
@@ -91,7 +91,7 @@ fsi_jacobian_Ωf(strategy::MeshStrategy{:laplacian},x,xt,dx,y,params) =
     da_FSI_du_q_Ωf(x,dx,y) +
     da_FSI_dv_q_Ωf(x,dx,y)
 
-function fsi_residual_Ωf(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
+function fluid_residual_Ω(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     ψ, ϕ, φ, q = y
@@ -102,7 +102,7 @@ function fsi_residual_Ωf(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
     l_FSI_ϕ_Ωf(strategy,[ϕ,φ,q],params["fu"],t) -
     l_FSI_φ_Ωf([ϕ,φ,q],params["fv"],t)
 end
-function fsi_jacobian_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
+function fluid_jacobian_Ω(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     dw, du, dv, dp = dx
@@ -115,7 +115,7 @@ function fsi_jacobian_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
     da_FSI_du_q_Ωf([u,v,p],[du,dv,dp],[ϕ,φ,q]) +
     da_FSI_dv_q_Ωf([u,v,p],[du,dv,dp],[ϕ,φ,q])
 end
-function fsi_jacobian_t_Ωf(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,params)
+function fluid_jacobian_t_Ω(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,params)
     w, u, v, p = x
     dwt, dut, dvt, dpt = dxt
     ψ, ϕ, φ, q = y
@@ -125,7 +125,7 @@ end
 
 
 # FSI (solid)
-function fsi_residual_Ωs(strategy::MeshStrategy,t,x,xt,y,params)
+function solid_residual_Ω(strategy::MeshStrategy,t,x,xt,y,params)
   u, v, p = x
   ut, vt, pt = xt
   ϕ, φ, q = y
@@ -134,7 +134,7 @@ function fsi_residual_Ωs(strategy::MeshStrategy,t,x,xt,y,params)
   l_FSI_ϕ_Ωs([ϕ,φ],params["fu"],t) -
   l_FSI_φ_Ωs([ϕ,φ],params["fv"],t)
 end
-function fsi_jacobian_Ωs(strategy::MeshStrategy,x,xt,dx,y,params)
+function solid_jacobian_Ω(strategy::MeshStrategy,x,xt,dx,y,params)
   u, v, p = x
   ut, vt, pt = xt
   du, dv, dp = dx
@@ -142,14 +142,14 @@ function fsi_jacobian_Ωs(strategy::MeshStrategy,x,xt,dx,y,params)
   da_FSI_dx_ϕ_Ωs([u,v],[du,dv],[ϕ,φ]) +
   da_FSI_dx_φ_Ωs([u,v],[du,dv],[ϕ,φ],params["ρ"],params["E"],params["ν"])
 end
-function fsi_jacobian_t_Ωs(strategy::MeshStrategy,x,xt,dxt,y,params)
+function solid_jacobian_t_Ω(strategy::MeshStrategy,x,xt,dxt,y,params)
   u, v, p = x
   dut, dvt, dpt = dxt
   ϕ, φ, q = y
   da_FSI_dxt_Ωs([u,v],[dut,dvt],[ϕ,φ],params["ρ"])
 end
 
-function fsi_residual_Ωs(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
+function solid_residual_Ω(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
     w, u, v, p = x
     wt, ut, vt, pt = xt
     ψ, ϕ, φ, q = y
@@ -159,7 +159,7 @@ function fsi_residual_Ωs(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
     l_FSI_ϕ_Ωs([ϕ,φ],params["fu"],t) -
     l_FSI_φ_Ωs([ϕ,φ],params["fv"],t)
 end
-function fsi_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
+function solid_jacobian_Ω(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
     w, u, v, p = x
     dw, du, dv, dp = dx
     ψ, ϕ, φ, q = y
@@ -167,7 +167,7 @@ function fsi_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
     da_FSI_dx_ϕ_Ωs([u,v],[du,dv],[ϕ,φ]) +
     da_FSI_dx_φ_Ωs([u,v],[du,dv],[ϕ,φ],params["ρ"],params["E"],params["ν"])
 end
-function fsi_jacobian_t_Ωs(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,params)
+function solid_jacobian_t_Ω(strategy::MeshStrategy{:biharmonic},x,xt,dxt,y,params)
     w, u, v, p = x
     dwt, dut, dvt, dpt = dxt
     ψ, ϕ, φ, q = y
@@ -183,34 +183,34 @@ fsi_residual_Γi(strategy::MeshStrategy{:biharmonic},x,y,params) = a_FSI_ϕ_Γi(
 fsi_jacobian_Γi(strategy::MeshStrategy{:biharmonic},x,dx,y,params) = da_FSI_dx_ϕ_Γi(strategy,x,dx,y,params["n"],params["α"])
 
 # Coupling management
-fsi_residual_Ωf(strategy,coupling::Coupling,t,x,xt,y,params) = fsi_residual_Ωf(strategy,t,x,xt,y,params)
-fsi_jacobian_Ωf(strategy,coupling::Coupling,x,xt,dx,y,params) = fsi_jacobian_Ωf(strategy,x,xt,dx,y,params)
-fsi_jacobian_t_Ωf(strategy,coupling::Coupling,x,xt,dxt,y,params) = fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,params)
-fsi_residual_Ωs(strategy,coupling::Coupling,t,x,xt,y,params) = fsi_residual_Ωs(strategy,t,x,xt,y,params)
-fsi_jacobian_Ωs(strategy,coupling::Coupling,x,xt,dx,y,params) = fsi_jacobian_Ωs(strategy,x,xt,dx,y,params)
-fsi_jacobian_t_Ωs(strategy,coupling::Coupling,x,xt,dxt,y,params) = fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,params)
+fluid_residual_Ω(strategy,coupling::Coupling,t,x,xt,y,params) = fluid_residual_Ω(strategy,t,x,xt,y,params)
+fluid_jacobian_Ω(strategy,coupling::Coupling,x,xt,dx,y,params) = fluid_jacobian_Ω(strategy,x,xt,dx,y,params)
+fluid_jacobian_t_Ω(strategy,coupling::Coupling,x,xt,dxt,y,params) = fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,params)
+solid_residual_Ω(strategy,coupling::Coupling,t,x,xt,y,params) = solid_residual_Ω(strategy,t,x,xt,y,params)
+solid_jacobian_Ω(strategy,coupling::Coupling,x,xt,dx,y,params) = solid_jacobian_Ω(strategy,x,xt,dx,y,params)
+solid_jacobian_t_Ω(strategy,coupling::Coupling,x,xt,dxt,y,params) = solid_jacobian_t_Ω(strategy,x,xt,dxt,y,params)
 fsi_residual_Γi(strategy,coupling::Coupling,x,y,params) = fsi_residual_Γi(strategy,x,y,params)
 fsi_jacobian_Γi(strategy,coupling::Coupling,x,dx,y,params) = fsi_jacobian_Γi(strategy,x,dx,y,params)
 
-function fsi_residual_Ωf(strategy::MeshStrategy,coupling::Coupling{:weak},t,x,xt,y,params)
+function fluid_residual_Ω(strategy::MeshStrategy,coupling::Coupling{:weak},t,x,xt,y,params)
   u_f, v_f, p, u_s, v_s = x
   ut_f, vt_f, pt, ut_s, vt_s = xt
   ϕ_f, φ_f, q, ϕ_s, φ_s = y
   x_f = u_f, v_f, p
   xt_f = ut_f, vt_f, pt
   y_f = ϕ_f, φ_f, q
-  fsi_residual_Ωf(strategy,t,x_f,xt_f,y_f,params)
+  fluid_residual_Ω(strategy,t,x_f,xt_f,y_f,params)
 end
-function fsi_residual_Ωf(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},t,x,xt,y,params)
+function fluid_residual_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},t,x,xt,y,params)
 w_f, u_f, v_f, p, u_s, v_s = x
 wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
 ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
 x_f = w_f, u_f, v_f, p
 xt_f = wt_f, ut_f, vt_f, pt
 y_f = ψ_f, ϕ_f, φ_f, q
-fsi_residual_Ωf(strategy,t,x_f,xt_f,y_f,params)
+fluid_residual_Ω(strategy,t,x_f,xt_f,y_f,params)
 end
-function fsi_jacobian_Ωf(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dx,y,params)
+function fluid_jacobian_Ω(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dx,y,params)
   u_f, v_f, p, u_s, v_s = x
   ut_f, vt_f, pt, ut_s, vt_s = xt
   du_f, dv_f, dp, du_s, dv_s = dx
@@ -219,9 +219,9 @@ function fsi_jacobian_Ωf(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,
   xt_f = ut_f, vt_f, pt
   dx_f = du_f, dv_f, dp
   y_f = ϕ_f, φ_f, q
-  fsi_jacobian_Ωf(strategy,x_f,xt_f,dx_f,y_f,params)
+  fluid_jacobian_Ω(strategy,x_f,xt_f,dx_f,y_f,params)
 end
-function fsi_jacobian_Ωf(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dx,y,params)
+function fluid_jacobian_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dx,y,params)
 w_f, u_f, v_f, p, u_s, v_s = x
 wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
 dw_f, du_f, dv_f, dp, du_s, dv_s = dx
@@ -230,9 +230,9 @@ x_f = w_f, u_f, v_f, p
 xt_f = wt_f, ut_f, vt_f, pt
 dx_f = dw_f, du_f, dv_f, dp
 y_f = ψ_f, ϕ_f, φ_f, q
-fsi_jacobian_Ωf(strategy,x_f,xt_f,dx_f,y_f,params)
+fluid_jacobian_Ω(strategy,x_f,xt_f,dx_f,y_f,params)
 end
-function fsi_jacobian_t_Ωf(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dxt,y,params)
+function fluid_jacobian_t_Ω(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dxt,y,params)
   u_f, v_f, p, u_s, v_s = x
   ut_f, vt_f, pt, ut_s, vt_s = xt
   dut_f, dvt_f, dpt, dut_s, dvt_s = dxt
@@ -241,9 +241,9 @@ function fsi_jacobian_t_Ωf(strategy::MeshStrategy,coupling::Coupling{:weak},x,x
   xt_f = ut_f, vt_f, pt
   dxt_f = dut_f, dvt_f, dpt
   y_f = ϕ_f, φ_f, q
-  fsi_jacobian_t_Ωf(strategy,x_f,xt_f,dxt_f,y_f,params)
+  fluid_jacobian_t_Ω(strategy,x_f,xt_f,dxt_f,y_f,params)
 end
-function fsi_jacobian_t_Ωf(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dxt,y,params)
+function fluid_jacobian_t_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dxt,y,params)
 w_f, u_f, v_f, p, u_s, v_s = x
 wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
 dwt_f, dut_f, dvt_f, dpt, dut_s, dvt_s = dxt
@@ -252,27 +252,27 @@ x_f = w_f, u_f, v_f, p
 xt_f = wt_f, ut_f, vt_f, pt
 dxt_f = dwt_f, dut_f, dvt_f, dpt
 y_f = ψ_f, ϕ_f, φ_f, q
-fsi_jacobian_t_Ωf(strategy,x_f,xt_f,dxt_f,y_f,params)
+fluid_jacobian_t_Ω(strategy,x_f,xt_f,dxt_f,y_f,params)
 end
-function fsi_residual_Ωs(strategy::MeshStrategy,coupling::Coupling{:weak},t,x,xt,y,params)
+function solid_residual_Ω(strategy::MeshStrategy,coupling::Coupling{:weak},t,x,xt,y,params)
   u_f, v_f, p, u_s, v_s = x
   ut_f, vt_f, pt, ut_s, vt_s = xt
   ϕ_f, φ_f, q, ϕ_s, φ_s = y
   x_s = u_s, v_s, p
   xt_s = ut_s, vt_s, pt
   y_s = ϕ_s, φ_s, q
-  fsi_residual_Ωs(strategy,t,x_s,xt_s,y_s,params)
+  solid_residual_Ω(strategy,t,x_s,xt_s,y_s,params)
 end
-function fsi_residual_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},t,x,xt,y,params)
+function solid_residual_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},t,x,xt,y,params)
 w_f, u_f, v_f, p, u_s, v_s = x
 wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
 ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
 x_s = w_f, u_s, v_s, p
 xt_s = wt_f, ut_s, vt_s, pt
 y_s = ψ_f, ϕ_s, φ_s, q
-fsi_residual_Ωs(strategy,t,x_s,xt_s,y_s,params)
+solid_residual_Ω(strategy,t,x_s,xt_s,y_s,params)
 end
-function fsi_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dx,y,params)
+function solid_jacobian_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dx,y,params)
   w_f, u_f, v_f, p, u_s, v_s = x
   wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
   dw_f, du_f, dv_f, dp, du_s, dv_s = dx
@@ -281,9 +281,9 @@ function fsi_jacobian_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling
   dx_s = dw_f, du_s, dv_s, dp
   xt_s = wt_f, ut_s, vt_s, pt
   y_s = ψ_f, ϕ_s, φ_s, q
-  fsi_jacobian_Ωs(strategy,x_s,xt_s,dx_s,y_s,params)
+  solid_jacobian_Ω(strategy,x_s,xt_s,dx_s,y_s,params)
 end
-function fsi_jacobian_Ωs(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dx,y,params)
+function solid_jacobian_Ω(strategy::MeshStrategy,coupling::Coupling{:weak},x,xt,dx,y,params)
 u_f, v_f, p, u_s, v_s = x
 ut_f, vt_f, pt, ut_s, vt_s = xt
 du_f, dv_f, dp, du_s, dv_s = dx
@@ -292,9 +292,9 @@ x_s = u_s, v_s, p
 dx_s = du_s, dv_s, dp
 xt_s = ut_s, vt_s, pt
 y_s = ϕ_s, φ_s, q
-fsi_jacobian_Ωs(strategy,x_s,xt_s,dx_s,y_s,params)
+solid_jacobian_Ω(strategy,x_s,xt_s,dx_s,y_s,params)
 end
-function fsi_jacobian_t_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dxt,y,params)
+function solid_jacobian_t_Ω(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,xt,dxt,y,params)
   w_f, u_f, v_f, p, u_s, v_s = x
   wt_f, ut_f, vt_f, pt, ut_s, vt_s = xt
   dwt_f, dut_f, dvt_f, dpt, dut_s, dvt_s = dxt
@@ -303,7 +303,7 @@ function fsi_jacobian_t_Ωs(strategy::MeshStrategy{:biharmonic},coupling::Coupli
   dxt_s = dwt_f, dut_s, dvt_s, dpt
   xt_s = wt_f, ut_s, vt_s, pt
   y_s = ψ_f, ϕ_s, φ_s, q
-  fsi_jacobian_t_Ωs(strategy,x_s,xt_s,dxt_s,y_s,params)
+  solid_jacobian_t_Ω(strategy,x_s,xt_s,dxt_s,y_s,params)
 end
 function fsi_residual_Γi(strategy::MeshStrategy,coupling::Coupling{:weak},x,y,params)
   u_f, v_f, p, u_s, v_s = x
@@ -343,4 +343,40 @@ fsi_jacobian_Γi(strategy,x_Γf,dx_Γf,y_Γf,params) +
 da_FSI_dx_ψ_Γi(strategy,x_Γf,dx_Γf,y_Γf,params["n"],params["α"]) +
 da_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["μ"],params["γ"],params["h"],params["dt"])
 end
+
+# Fuild boundary
+function fluid_residual_Γ(strategy::MeshStrategy,coupling::Coupling{:weak},x,y,params)
+ fsi_residual_Γi(strategy,x,y,params) +
+ a_fluid_Nitsche_ϕ_Γi(x,y,params["n"],params["μ"],params["γ"],params["h"],params["dt"],params["uD"],params["vD"])
+end
+function fluid_residual_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,y,params)
+w, u, v, p = x
+ψ, ϕ, φ, q = y
+fsi_residual_Γi(strategy,x,y,params) +
+a_FSI_ψ_Γi(strategy,x,y,params["n"],params["α"]) +
+a_fluid_Nitsche_ϕ_Γi([u,v,p],[ϕ,φ,q],params["n"],params["μ"],params["γ"],params["h"],params["dt"],params["uD"],params["vD"])
+end
+#=
+function fsi_jacobian_Γi(strategy::MeshStrategy,coupling::Coupling{:weak},x,dx,y,params)
+ u_f, v_f, p, u_s, v_s = x
+  du_f, dv_f, dp, du_s, dv_s = dx
+  ϕ_f, φ_f, q, ϕ_s, φ_s = y
+  x_Γf = u_f.⁺, v_f.⁺, p.⁺
+  dx_Γf = du_f.⁺, dv_f.⁺, dp.⁺
+  y_Γf = ϕ_f.⁺, φ_f.⁺, q.⁺
+  fsi_jacobian_Γi(strategy,x_Γf,dx_Γf,y_Γf,params) +
+  da_FSI_Nitsche_ϕ_Γi(x,dx,y,params["n"],params["μ"],params["γ"],params["h"],params["dt"])
+end
+function fsi_jacobian_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,dx,y,params)
+w_f, u_f, v_f, p, u_s, v_s = x
+dw_f, du_f, dv_f, dp, du_s, dv_s = dx
+ψ_f, ϕ_f, φ_f, q, ϕ_s, φ_s = y
+x_Γf = w_f.⁺, u_f.⁺, v_f.⁺, p.⁺
+dx_Γf = dw_f.⁺, du_f.⁺, dv_f.⁺, dp.⁺
+y_Γf = ψ_f.⁺, ϕ_f.⁺, φ_f.⁺, q.⁺
+fsi_jacobian_Γi(strategy,x_Γf,dx_Γf,y_Γf,params) +
+da_FSI_dx_ψ_Γi(strategy,x_Γf,dx_Γf,y_Γf,params["n"],params["α"]) +
+da_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, q, ϕ_s, φ_s],params["n"],params["μ"],params["γ"],params["h"],params["dt"])
+end
+=#
 end
