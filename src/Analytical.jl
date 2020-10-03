@@ -181,12 +181,12 @@ function execute(problem::Problem{:analytical};kwargs...)
 
   # FSI problem
   println("Defining FSI operator")
-  res_FSI_Ωf(t,x,xt,y) = WeakForms.fsi_residual_Ωf(strategy,t,x,xt,y,fsi_f_params)
-  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωf(strategy,x,xt,dx,y,fsi_f_params)
-  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωf(strategy,x,xt,dxt,y,fsi_f_params)
-  res_FSI_Ωs(t,x,xt,y) = WeakForms.fsi_residual_Ωs(strategy,t,x,xt,y,fsi_s_params)
-  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.fsi_jacobian_Ωs(strategy,x,xt,dx,y,fsi_s_params)
-  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.fsi_jacobian_t_Ωs(strategy,x,xt,dxt,y,fsi_s_params)
+  res_FSI_Ωf(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,t,x,xt,y,fsi_f_params)
+  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,x,xt,dx,y,fsi_f_params)
+  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,fsi_f_params)
+  res_FSI_Ωs(t,x,xt,y) = WeakForms.solid_residual_Ω(strategy,t,x,xt,y,fsi_s_params)
+  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.solid_jacobian_Ω(strategy,x,xt,dx,y,fsi_s_params)
+  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.solid_jacobian_t_Ω(strategy,x,xt,dxt,y,fsi_s_params)
   res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,x,y,fsi_Γi_params)
   jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,x,dx,y,fsi_Γi_params)
   t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, trian_fluid, quad_fluid)
@@ -205,7 +205,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   # Solve Stokes problem
   @timeit "ST problem" begin
   println("Solving Stokes problem")
-  xh = solve(op_ST)
+  xh = Gridap.solve(op_ST)
   if(is_vtk)
     writePVD(filePath, trian_fluid, [(xh, 0.0)])
   end
@@ -239,7 +239,7 @@ iterations = 50
 )
 odes =  ThetaMethod(nls, dt, 0.5)
 solver = TransientFESolver(odes)
-sol_FSI = solve(solver, op_FSI, xh0, t0, tf)
+sol_FSI = Gridap.solve(solver, op_FSI, xh0, t0, tf)
 end
 
 # Compute outputs

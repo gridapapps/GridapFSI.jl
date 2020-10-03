@@ -4,6 +4,7 @@ authors = ["Oriol Colomes"]
 version = "0.1.0"
 
 [deps]
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Gridap = "56d4f2e9-7ea1-5844-9cf6-b9c51ca7ce8e"
 GridapODEs = "55e38337-5b6e-4c7c-9cfc-e00dd49102e6"
