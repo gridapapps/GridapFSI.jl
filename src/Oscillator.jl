@@ -123,23 +123,23 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   "α"=>α_Γc,
   "γ"=>γ_f,
   "h"=>hΓ,
-  "dt"=>dt
+  "vD"=>du_y
   )
 
    # FSI problem
   println("Defining FSI operator")
-  res_NSI_Ω(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,nsi_f_params)
-  jac_NSI_Ω(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,coupling,x,xt,dx,y,nsi_f_params)
-  jac_t_NSI_Ω(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,nsi_f_params)
-  #=res_NSI_Γc(t,x,xt,y) = WeakForms.fluid_residual_Γ(strategy,coupling,x,y,t,fsi_Γi_params)
-  jac_NSI_Γc(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Γ(strategy,coupling,x,dx,y,t,fsi_Γi_params)
-  t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, trian_fluid, quad_fluid)
-  t_FSI_Ωs = FETerm(res_FSI_Ωs, jac_FSI_Ωs, jac_t_FSI_Ωs, trian_solid, quad_solid)
-  t_FSI_Γi = FETerm(res_FSI_Γi,jac_FSI_Γi,trian_Γi,quad_Γi)
-  op_FSI = TransientFEOperator(X_FSI,Y_FSI,t_FSI_Ωf,t_FSI_Ωs,t_FSI_Γi)
+  res_NSI_Ω(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,t,x,xt,y,nsi_f_params)
+  jac_NSI_Ω(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,x,xt,dx,y,nsi_f_params)
+  jac_t_NSI_Ω(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,nsi_f_params)
+  res_NSI_Γc(t,x,xt,y) = WeakForms.fluid_residual_Γ(strategy,t,x,xt,y,nsi_Γc_params)
+  jac_NSI_Γc(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Γ(strategy,x,xt,dx,y,nsi_Γc_params)
+  jac_t_NSI_Γc(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Γ(strategy,dxt,y,nsi_Γc_params)
+  t_NSI_Ω = FETerm(res_NSI_Ω, jac_NSI_Ω, jac_t_NSI_Ω, trian, quad)
+  t_NSI_Γc = FETerm(res_NSI_Γc,jac_NSI_Γc,jac_t_NSI_Γc,trian_Γc,quad_Γc)
+  op_FSI = TransientFEOperator(X_NSI,Y_NSI,t_NSI_Ω,t_NSI_Γc)
 
   # Setup output files
-  folderName = "fsi-results"
+  folderName = "oscillator-results"
   fileName = "fields"
   if !isdir(folderName)
     mkdir(folderName)
@@ -149,16 +149,16 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   # Solve Stokes problem
   @timeit "ST problem" begin
     println("Solving Stokes problem")
-    xh = solve(op_ST)
+    xh = Gridap.solve(op_ST)
     if(is_vtk)
-      writePVD(filePath, trian_fluid, [(xh, 0.0)])
+      writePVD(filePath, trian, [(xh, 0.0)])
     end
   end
 
   # Solve FSI problem
   @timeit "FSI problem" begin
     println("Solving FSI problem")
-    xh0  = interpolate(xh,X_FSI(0.0))
+    xh0  = interpolate(xh,X_NSI(0.0))
     nls = NLSolver(
     show_trace = true,
     method = :newton,
@@ -168,7 +168,7 @@ function execute(problem::Problem{:oscillator}; kwargs...)
     )
     odes =  ThetaMethod(nls, dt, θ)
     solver = TransientFESolver(odes)
-    sol_FSI = solve(solver, op_FSI, xh0, t0, tf)
+    sol_NSI = Gridap.solve(solver, op_FSI, xh0, t0, tf)
   end
 
   # Compute outputs
@@ -181,17 +181,17 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   "model"=>model,
   "bdegree"=>bdegree,
   "trian"=>trian,
-  "trian_Γi"=>trian_Γi,
-  "quad_Γi"=>quad_Γi,
-  "n_Γi"=>n_Γi,
+  "trian_Γc"=>trian_Γc,
+  "quad_Γc"=>quad_Γc,
+  "n_Γc"=>n_Γc,
   "xh0"=>xh0,
-  "sol"=>sol_FSI,
+  "sol"=>sol_NSI,
   "filePath"=>filePath,
   "is_vtk"=>is_vtk,
   "coupling"=>coupling,
   )
   output = computeOutputs(problem,strategy;params=out_params)
-   =#
+
 end
 
 function get_cylinder_motion()
@@ -258,7 +258,8 @@ function get_boundary_conditions(
   )
 
   u0 = VectorValue(0.0, 0.0)
-  u0t(t) = u0
+  u0t(x,t) = u0
+  u0t(t::Real) = x -> u0t(x,t)
 
   boundary_conditions = (
   # Tags
@@ -360,4 +361,115 @@ function get_FE_spaces(
     Y_NSI = MultiFieldFESpace([Vw_NSI,Vu_NSI,Vv_NSI,Q]),
     X_NSI = TransientMultiFieldFESpace([Uw_NSI,Uu_NSI,Uv_NSI,P])
   )
+end
+function computeOutputs(problem::Problem{:oscillator},strategy::WeakForms.MeshStrategy;params=Dict())#, sol, xh0)
+
+  # Unpack parameters
+  model = params["model"]
+  bdegree = params["bdegree"]
+  xh0 = params["xh0"]
+  sol = params["sol"]
+  μ = params["μ"]
+  trian = params["trian"]
+  trian_Γc = params["trian_Γc"]
+  quad_Γc = params["quad_Γc"]
+  n_Γc = params["n_Γc"]
+  Um = params["Um"]
+  ⌀ = params["⌀"]
+  ρ = params["ρ"]
+  θ = params["θ"]
+  filePath = params["filePath"]
+  is_vtk = params["is_vtk"]
+  coupling = params["coupling"]
+  if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
+    uvpindex = [2,3,4]
+  else
+    uvpindex = [1,2,3]
+  end
+
+  #=
+  # Aux function
+  traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pf_dev(μ,u,v)  + WeakForms.Pf_vol(u,p) * n
+  function traction_closure(coupling,n,u,v,p)
+    if typeof(coupling) == WeakForms.Coupling{:weak}
+      traction_boundary(n,u,v,p).⁺
+    else
+      traction_boundary(n,u,v,p)
+    end
+  end
+  traction_interface(n,u,v,p) = traction_closure(coupling,n,u,v,p)
+
+  ## Initialize arrays
+  tpl = Real[]
+  FDpl = Real[]
+  FLpl = Real[]
+  uhn = xh0[uvpindex[1]]
+  vhn = xh0[uvpindex[2]]
+  phn = xh0[uvpindex[3]]
+=#
+  ## Loop over steps
+  outfiles = paraview_collection(filePath, append=true
+  ) do pvd
+  for (i,(xh, t)) in enumerate(sol)
+    println("STEP: $i, TIME: $t")
+    println("============================")
+
+    #=
+    ## Get the solution at n+θ (where velocity and pressure are balanced)
+    uh = xh[uvpindex[1]]
+    vh = xh[uvpindex[2]]
+    ph = xh[uvpindex[3]]
+    uh_Γc = restrict(uh, trian_Γc)
+    vh_Γc = restrict(vh, trian_Γc)
+    ph_Γc = restrict(ph, trian_Γc)
+    uhn_Γc = restrict(uhn, trian_Γc)
+    vhn_Γc = restrict(vhn, trian_Γc)
+    phn_Γc = restrict(phn, trian_Γc)
+    uhθ_Γc = θ*uh_Γc + (1.0-θ)*uhn_Γc
+    vhθ_Γc = θ*vh_Γc + (1.0-θ)*vhn_Γc
+    phθ_Γc = θ*ph_Γc + (1.0-θ)*phn_Γc
+    uh_Γi = restrict(uh, trian_Γi)
+    vh_Γi = restrict(vh, trian_Γi)
+    ph_Γi = restrict(ph, trian_Γi)
+    uhn_Γi = restrict(uhn, trian_Γi)
+    vhn_Γi = restrict(vhn, trian_Γi)
+    phn_Γi = restrict(phn, trian_Γi)
+    uhθ_Γi = θ*uh_Γi + (1.0-θ)*uhn_Γi
+    vhθ_Γi = θ*vh_Γi + (1.0-θ)*vhn_Γi
+    phθ_Γi = θ*ph_Γi + (1.0-θ)*phn_Γi
+
+    # Integrate on the cylinder
+    FDc, FLc = sum(integrate(traction_boundary(n_Γc,uhθ_Γc,vhθ_Γc,phθ_Γc), trian_Γc, quad_Γc))
+
+    # Integrate on the interface
+    FDi, FLi = sum(integrate(traction_interface(n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), trian_Γi, quad_Γi))
+
+    FD = FDc + FDi
+    FL = FLc + FLi
+
+    ## Drag and lift Forces
+    push!(tpl, t)
+    push!(FDpl, -FD)
+    push!(FLpl, -FL)
+
+    ## store step n
+    uhn = uh
+    vhn = vh
+    phn = ph
+=#
+    # Write to PVD
+    if(is_vtk)
+      uh = xh[uvpindex[1]]
+      vh = xh[uvpindex[2]]
+      ph = xh[uvpindex[3]]
+      pvd[t] = createvtk(
+      trian,
+      filePath * "_$t.vtu",
+      cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
+      )
+    end
+  end
+end
+
+#return (tpl, FDpl, FLpl)
 end

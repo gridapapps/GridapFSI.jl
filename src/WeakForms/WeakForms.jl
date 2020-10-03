@@ -345,17 +345,40 @@ da_FSI_Nitsche_ϕ_Γi([u_f,v_f,p,u_s,v_s],[du_f,dv_f,dp,du_s,dv_s],[ϕ_f, φ_f, 
 end
 
 # Fuild boundary
-function fluid_residual_Γ(strategy::MeshStrategy,coupling::Coupling{:weak},x,y,params)
+function fluid_residual_Γ(strategy::MeshStrategy,t,x,xt,y,params)
  fsi_residual_Γi(strategy,x,y,params) +
- a_fluid_Nitsche_ϕ_Γi(x,y,params["n"],params["μ"],params["γ"],params["h"],params["dt"],params["uD"],params["vD"])
+ a_fluid_Nitsche_Γ(x,xt,y,t,params["vD"],params["n"],params["μ"],params["γ"],params["h"])
 end
-function fluid_residual_Γi(strategy::MeshStrategy{:biharmonic},coupling::Coupling{:weak},x,y,params)
-w, u, v, p = x
-ψ, ϕ, φ, q = y
-fsi_residual_Γi(strategy,x,y,params) +
-a_FSI_ψ_Γi(strategy,x,y,params["n"],params["α"]) +
-a_fluid_Nitsche_ϕ_Γi([u,v,p],[ϕ,φ,q],params["n"],params["μ"],params["γ"],params["h"],params["dt"],params["uD"],params["vD"])
+function fluid_residual_Γi(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
+  w, u, v, p = x
+  wt, ut, vt, pt = xt
+  ψ, ϕ, φ, q = y
+  fsi_residual_Γi(strategy,x,y,params) +
+  a_FSI_ψ_Γi(strategy,x,y,params["n"],params["α"]) +
+  a_fluid_Nitsche_Γ([u, v, p],[ut, vt, pt],[ϕ, φ, q],t,params["vD"],params["n"],params["μ"],params["γ"],params["h"])
 end
+function fluid_jacobian_Γ(strategy::MeshStrategy,x,xt,dx,y,params)
+  fsi_jacobian_Γi(strategy,x,dx,y,params) +
+  da_fluid_Nitsche_Γ(x,xt,dx,y,params["n"],params["μ"],params["γ"],params["h"])
+end
+function fluid_jacobian_Γ(strategy::MeshStrategy{:biharmonic},x,xt,dx,y,params)
+  w, u, v, p = x
+  wt, ut, vt, pt = xt
+  dw, du, dv, dp = dx
+  ψ, ϕ, φ, q = y
+  fsi_jacobian_Γi(strategy,x,dx,y,params) +
+  da_FSI_dx_ψ_Γi(strategy,x,dx,y,params["n"],params["α"]) +
+  da_fluid_Nitsche_Γ([u,v,p],[ut,vt,pt],[du,dv,dp],[ϕ, φ, q],params["n"],params["μ"],params["γ"],params["h"])
+end
+function fluid_jacobian_t_Γ(strategy::MeshStrategy,dxt,y,params)
+  da_dt_fluid_Nitsche_Γ(dxt,y,params["μ"],params["γ"],params["h"])
+end
+function fluid_jacobian_t_Γ(strategy::MeshStrategy{:biharmonic},dxt,y,params)
+  dwt, dut, dvt, dpt = dxt
+  ψ, ϕ, φ, q = y
+  da_dt_fluid_Nitsche_Γ([dut,dvt,dpt],[ϕ, φ, q],params["μ"],params["γ"],params["h"])
+end
+
 #=
 function fsi_jacobian_Γi(strategy::MeshStrategy,coupling::Coupling{:weak},x,dx,y,params)
  u_f, v_f, p, u_s, v_s = x
