@@ -30,7 +30,7 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   strategy = WeakForms.MeshStrategy{Symbol(strategyName)}()
 
   # Coupling (boundary conditions) type
-  couplingName = _get_kwarg(:coupling,kwargs,"weak")
+  couplingName = _get_kwarg(:coupling,kwargs,"strong")
   coupling = WeakForms.Coupling{Symbol(couplingName)}()
 
   # Define BC functions
@@ -53,7 +53,7 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   @eval ∂t(::$T_in) = $∂tu_in
   @eval ∂t(::$T_sym) = $∂tu_sym
   @eval ∂t(::$T_cylinder) = $∂tu_cylinder
-  bconds = get_boundary_conditions(problem,strategy,coupling,u_in,u_sym,u_cylinder)
+  bconds = get_boundary_conditions(problem,strategy,coupling,u_in,u_sym,u_cylinder,∂tu_cylinder)
 
   # Forcing terms
   f(t) = x -> VectorValue(0.0,0.0)
@@ -131,12 +131,16 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   res_NSI_Ω(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,t,x,xt,y,nsi_f_params)
   jac_NSI_Ω(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,x,xt,dx,y,nsi_f_params)
   jac_t_NSI_Ω(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,nsi_f_params)
-  res_NSI_Γc(t,x,xt,y) = WeakForms.fluid_residual_Γ(strategy,t,x,xt,y,nsi_Γc_params)
-  jac_NSI_Γc(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Γ(strategy,x,xt,dx,y,nsi_Γc_params)
-  jac_t_NSI_Γc(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Γ(strategy,dxt,y,nsi_Γc_params)
   t_NSI_Ω = FETerm(res_NSI_Ω, jac_NSI_Ω, jac_t_NSI_Ω, trian, quad)
-  t_NSI_Γc = FETerm(res_NSI_Γc,jac_NSI_Γc,jac_t_NSI_Γc,trian_Γc,quad_Γc)
-  op_FSI = TransientFEOperator(X_NSI,Y_NSI,t_NSI_Ω,t_NSI_Γc)
+  if(typeof(coupling)==WeakForms.Coupling{:weak})
+    res_NSI_Γc(t,x,xt,y) = WeakForms.fluid_residual_Γ(strategy,t,x,xt,y,nsi_Γc_params)
+    jac_NSI_Γc(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Γ(strategy,x,xt,dx,y,nsi_Γc_params)
+    jac_t_NSI_Γc(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Γ(strategy,dxt,y,nsi_Γc_params)
+    t_NSI_Γc = FETerm(res_NSI_Γc,jac_NSI_Γc,jac_t_NSI_Γc,trian_Γc,quad_Γc)
+    op_FSI = TransientFEOperator(X_NSI,Y_NSI,t_NSI_Ω,t_NSI_Γc)
+  else
+    op_FSI = TransientFEOperator(X_NSI,Y_NSI,t_NSI_Ω)
+  end
 
   # Setup output files
   folderName = "oscillator-results"
@@ -254,7 +258,8 @@ function get_boundary_conditions(
   coupling::WeakForms.Coupling{:weak},
   u_in,
   u_sym,
-  u_cylinder
+  u_cylinder,
+  v_cylinder
   )
 
   u0 = VectorValue(0.0, 0.0)
@@ -279,10 +284,42 @@ function get_boundary_conditions(
   )
 end
 
+function get_boundary_conditions(
+  problem::Problem{:oscillator},
+  strategy::WeakForms.MeshStrategy,
+  coupling::WeakForms.Coupling{:strong},
+  u_in,
+  u_sym,
+  u_cylinder,
+  v_cylinder
+  )
+
+  u0 = VectorValue(0.0, 0.0)
+  u0t(x,t) = u0
+  u0t(t::Real) = x -> u0t(x,t)
+
+  boundary_conditions = (
+  # Tags
+  NSI_Vw_tags = ["inlet", "noslip", "cylinder", "outlet"],
+  NSI_Vu_tags = ["inlet", "noslip", "cylinder", "outlet"],
+  NSI_Vv_tags = ["inlet", "noslip", "cylinder"],
+  NSI_Vv_masks = [(true,true), (false,true), (true,true)],
+  ST_Vu_tags = ["inlet", "noslip", "cylinder","outlet"],
+  ST_Vv_tags = ["inlet", "noslip", "cylinder"],
+  ST_Vv_masks = [(true,true), (false,true), (true,true)],
+  # Values,
+  NSI_Vw_values = [u0, u0, u0, u0],
+  NSI_Vu_values = [u0t, u0t, u_cylinder, u0t],
+  NSI_Vv_values = [u_in, u_sym, v_cylinder],
+  ST_Vu_values = [u0, u0, u_cylinder(0.0), u0],
+  ST_Vv_values = [u_in(0.0), u_sym(0.0), v_cylinder(0.0)],
+  )
+end
+
 function get_FE_spaces(
   problem::Problem{:oscillator},
   strategy::WeakForms.MeshStrategy{:biharmonic},
-  coupling::WeakForms.Coupling{:weak},
+  coupling::WeakForms.Coupling,
   model,
   order,
   bconds)
