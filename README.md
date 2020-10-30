@@ -28,7 +28,7 @@ Currently the following drivers are implemented:
 
 ## Examples
 ### Elastic flag after a cylinder: FSI-1
-The FSI1 test case for the elastic flag benchmark proposed by S. Turek and J. Horn can be run with the following command:
+The FSI-1 test case for the elastic flag benchmark proposed by S. Turek and J. Horn can be run with the following command:
 ```julia
 output = main(
   Um=0.2,
@@ -51,10 +51,39 @@ This call will run the FSI1 test case using a θ-method with a time step size of
   Reference | | 2.27e-5 | 8.209e-4 | 14.295 | 0.7638
 
   ![](/models/velFSI1.png)
+  
+### Elastic flag after a cylinder: FSI-2
+The FSI-2 test case for the elastic flag benchmark proposed by S. Turek and J. Horn can be run with the following command:
+```julia
+output = main(
+  strategy="biharmonic",
+  alpha_m=1.0e-6,
+  alpha_m_weight="volume",
+  model="models/elasticFlagFine.json",
+  dt=0.01,
+  tf=10.0,
+  theta=0.6
+  )
+```
+The output is the same as the FSI-1 case. In this case, the solution results in a periodic oscillation of the flag as seen in the following movie.
+
+![](/models/FSI2.gif)
+
+### Flow around a cylinder with forced cross-flow oscillations
+
+<center>🚧🚧🚧 work in progress 🚧🚧🚧</center>
+
+In this example we analyse the flow around a cylinder that moves in the cross-flow direction with a forced oscillation. To run this test, execute the following command:
+```julia
+output = main(problemName="oscillator",dt=0.025,tf=10.0)
+```
+The main feature of this example is that we first solve a wake oscillator model with nonlinear coupling for the vortex-induced vibration of a rigid cylinder constrained to vibrate in the cross-flow direction. This is done by solving a nonlinear ODE using the `DifferentialEquations.jl` package. The solution obtained from the wake model is then used as a boundary condition for the displacement and velocity of the cylinder subject to forced motion.
+
+![](/models/oscillator.gif)
 
 ## Contributing
 Contributions with the definition of new drivers and additional FSI formulations are welcome. The repository is organized as follows:
-  - `Gridap.jl`: module with the main function and inclusion of submodules.
+  - `GridapFSI.jl`: module with the main function and inclusion of submodules.
   - `FSIDrivers.jl`: module with a list of user-defined drivers. Each driver must implement the `execute` function with the corresponding problem name (`<driverName>`). 
     ```julia
     function execute(problem::Problem{:<driverName>}; kwargs...)

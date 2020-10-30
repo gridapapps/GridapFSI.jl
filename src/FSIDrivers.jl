@@ -13,6 +13,7 @@ using TimerOutputs
 using WriteVTK
 using LineSearches: BackTracking, HagerZhang
 using ForwardDiff
+using DifferentialEquations
 using Test
 
 import GridapODEs.TransientFETools: ∂t
@@ -25,6 +26,7 @@ struct Problem{Kind} end
 include("ElasticFlag.jl")
 include("ElasticFlagAggFEM.jl")
 include("Analytical.jl")
+include("Oscillator.jl")
 
 execute(problem::Problem; kwargs...) = @notimplemented("The driver for problem: $problem is not implemented")
 
