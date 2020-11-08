@@ -84,109 +84,55 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
   model = DiscreteModelFromFile(modelName)
   model_solid = DiscreteModel(model,"solid")
   model_fluid = DiscreteModel(model,"fluid")
+  models = Dict(:Ω => model, :Ωf => model_fluid, :Ωs => model_solid)
 
   # Triangulations
   println("Defining triangulations")
-  trian = Triangulation(model)
-  trian_solid = Triangulation(model_solid)
-  trian_fluid = Triangulation(model_fluid)
-  function Γi_triangulation(coupling)
-    if typeof(coupling) == WeakForms.Coupling{:weak}
-      InterfaceTriangulation(model_fluid,model_solid)
-    else
-      BoundaryTriangulation(model_fluid,"interface")
-    end
-  end
-  trian_Γi = Γi_triangulation(coupling)
-  n_Γi = get_normal_vector(trian_Γi)
-
-  # Compute cell area (auxiliar quantity for mesh motion eq.)
-  if( weight_strategy == "volume")
-    volf = cell_measure(trian_fluid,trian)
-    vols = cell_measure(trian_solid,trian)
-    α_fluid = α_m * reindex(volf,trian_fluid)
-    α_solid = α_m * reindex(vols,trian_solid)
-    if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-      α_Γi = α_m * reindex(volf,get_left_boundary(trian_Γi))
-    else
-      α_Γi = α_m * reindex(volf,trian_Γi)
-    end
-  else
-    α_fluid = α_m; α_solid = α_m; α_Γi = α_m
-  end
-
-  # Compute interface element size (if weak coupling)
-  if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-    trian_boundary_Γi = get_left_boundary(trian_Γi)
-    hΓᵢ = reindex(cell_measure(trian_boundary_Γi,trian),trian_boundary_Γi)
-  else
-    hΓᵢ = 0.0
-  end
+  Tₕ = get_FSI_triangulations(models,coupling)
 
   # Quadratures
   println("Defining quadratures")
   order = _get_kwarg(:order,kwargs,2)
-  degree = 2*order
-  bdegree = 2*order
-  quad_solid = CellQuadrature(trian_solid,degree)
-  quad_fluid = CellQuadrature(trian_fluid,degree)
-  quad_Γi = CellQuadrature(trian_Γi,bdegree)
+  quads = get_FSI_quadratures(Tₕ,order)
 
   # Test FE Spaces
   println("Defining FE spaces")
-  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(problem,strategy,coupling,model,
-  model_fluid,model_solid,order,bconds)
+  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,models,order,bconds)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
-  res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ_f,f(0.0))
-  jac_ST(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ_f)
-  t_ST_Ωf = FETerm(res_ST, jac_ST, trian_fluid, quad_fluid)
-  op_ST = FEOperator(X_ST,Y_ST,t_ST_Ωf)
+  op_ST = get_Stokes_operator([X_ST,Y_ST],strategy,Tₕ[:Ωf],quads[:Ωf],μ_f,f(0.0))
 
   # Setup equation parameters
-  fsi_f_params = Dict(
-    "μ"=>μ_f,
-    "ρ"=>ρ_f,
-    "E"=>E_m,
-    "ν"=>ν_m,
-    "α"=>α_fluid,
-    "fu"=>f,
-    "fv"=>f,
-    )
-  fsi_s_params = Dict(
-    "ρ"=>ρ_s,
-    "E"=>E_s,
-    "ν"=>ν_s,
-    "fu"=>f,
-    "fv"=>f,
-    "α"=>α_solid,
-    )
-  fsi_Γi_params = Dict(
-    "n"=>n_Γi,
-    "E"=>E_m,
-    "ν"=>ν_m,
-    "μ"=>μ_f,
-    "α"=>α_Γi,
-    "γ"=>γ_f,
-    "h"=>hΓᵢ,
-    "dt"=>dt
-    )
+  mesh_params = Dict{Symbol,Any}(
+    :w_strategy=>weight_strategy,
+    :α=>α_m,
+    :E=>E_m,
+    :ν=>ν_m,
+  )
+  fluid_params = Dict{Symbol,Any}(
+    :μ=>μ_f,
+    :ρ=>ρ_f,
+    :fu=>f,
+    :fv=>f,
+  )
+  solid_params = Dict{Symbol,Any}(
+    :ρ=>ρ_s,
+    :E=>E_s,
+    :ν=>ν_s,
+    :fu=>f,
+    :fv=>f,
+  )
+  Γi_params = Dict{Symbol,Any}(
+    :μ=>μ_f,
+    :γ=>γ_f,
+    :dt=>dt
+  )
+  params = (mesh_params, fluid_params, solid_params, Γi_params)
 
   # FSI problem
   println("Defining FSI operator")
-  res_FSI_Ωf(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,fsi_f_params)
-  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,coupling,x,xt,dx,y,fsi_f_params)
-  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,fsi_f_params)
-  res_FSI_Ωs(t,x,xt,y) = WeakForms.solid_residual_Ω(strategy,coupling,t,x,xt,y,fsi_s_params)
-  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.solid_jacobian_Ω(strategy,coupling,x,xt,dx,y,fsi_s_params)
-  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,fsi_s_params)
-  res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,coupling,x,y,fsi_Γi_params)
-  jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,fsi_Γi_params)
-  t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, trian_fluid, quad_fluid)
-  t_FSI_Ωs = FETerm(res_FSI_Ωs, jac_FSI_Ωs, jac_t_FSI_Ωs, trian_solid, quad_solid)
-  t_FSI_Γi = FETerm(res_FSI_Γi,jac_FSI_Γi,trian_Γi,quad_Γi)
-  op_FSI = TransientFEOperator(X_FSI,Y_FSI,t_FSI_Ωf,t_FSI_Ωs,t_FSI_Γi)
+  op_FSI = get_FSI_operator([X_FSI,Y_FSI],coupling,strategy,Tₕ,quads,params)
 
   # Setup output files
   folderName = "fsi-results"
@@ -218,29 +164,21 @@ nls = NLSolver(
   )
 odes =  ThetaMethod(nls, dt, θ)
 solver = TransientFESolver(odes)
-sol_FSI = Gridap.solve(solver, op_FSI, xh0, t0, tf)
+xht = Gridap.solve(solver, op_FSI, xh0, t0, tf)
 end
 
 # Compute outputs
-out_params = Dict(
-  "μ"=>μ_f,
-  "Um"=>Um,
-  "⌀"=>⌀,
-  "ρ"=>ρ_f,
-  "θ"=>θ,
-  "model"=>model,
-  "bdegree"=>bdegree,
-  "trian"=>trian,
-  "trian_Γi"=>trian_Γi,
-  "quad_Γi"=>quad_Γi,
-  "n_Γi"=>n_Γi,
-  "xh0"=>xh0,
-  "sol"=>sol_FSI,
-  "filePath"=>filePath,
-  "is_vtk"=>is_vtk,
-  "coupling"=>coupling,
+out_params = Dict{Symbol,Any}(
+  :μ=>μ_f,
+  :Um=>Um,
+  :⌀=>⌀,
+  :ρ=>ρ_f,
+  :θ=>θ,
+  :bdegree=>2*order,
+  :filePath=>filePath,
+  :is_vtk=>is_vtk,
   )
-output = computeOutputs(problem,strategy;params=out_params)
+output = computeOutputs(xh0,xht,coupling,strategy,models,Tₕ,quads,out_params)
 
 end
 
@@ -292,382 +230,25 @@ function get_boundary_conditions(
   )
 end
 
-function get_FE_spaces(
-  problem::Problem,
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:strong},
-  model,
-  model_fluid,
-  model_solid,
-  order,
-  bconds)
-
-  Vu_FSI = TestFESpace(
-    model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_tags]
-    )
-  Vv_FSI = TestFESpace(
-    model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_tags]
-    )
-  Vu_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vv_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vv_tags]
-    )
-  Q = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=Float64,
-    order=order-1,
-    reffe=:Lagrangian,
-    conformity=:C0
-    )
-
-  # Trial FE Spaces
-  Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uu_FSI = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_values])
-  Uv_FSI = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_values])
-  P = TrialFESpace(Q)
-
-  # Multifield FE Spaces
-  fe_spaces = (
-    Y_ST = MultiFieldFESpace([Vu_ST,Vv_ST,Q]),
-    X_ST = MultiFieldFESpace([Uu_ST,Uv_ST,P]),
-    Y_FSI = MultiFieldFESpace([Vu_FSI,Vv_FSI,Q]),
-    X_FSI = TransientMultiFieldFESpace([Uu_FSI,Uv_FSI,P])
-  )
-end
-
-function get_FE_spaces(
-  problem::Problem,
-  strategy::WeakForms.MeshStrategy{:biharmonic},
-  coupling::WeakForms.Coupling{:strong},
-  model,
-  model_fluid,
-  model_solid,
-  order,
-  bconds)
-
-  Vw_FSI = TestFESpace(
-    model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_tags]
-    )
-  Vu_FSI = TestFESpace(
-    model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_tags]
-    )
-  Vv_FSI = TestFESpace(
-    model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_tags]
-    )
-  Vw_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vu_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vv_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vv_tags]
-    )
-  Q = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=Float64,
-    order=order-1,
-    reffe=:Lagrangian,
-    conformity=:C0
-    )
-
-  # Trial FE Spaces
-  Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uw_FSI = TrialFESpace(Vu_FSI,bconds[:ST_Vu_values])
-  Uu_FSI = TransientTrialFESpace(Vu_FSI,bconds[:FSI_Vu_values])
-  Uv_FSI = TransientTrialFESpace(Vv_FSI,bconds[:FSI_Vv_values])
-  P = TrialFESpace(Q)
-
-  # Multifield FE Spaces
-  fe_spaces = (
-    Y_ST = MultiFieldFESpace([Vw_ST,Vu_ST,Vv_ST,Q]),
-    X_ST = MultiFieldFESpace([Uw_ST,Uu_ST,Uv_ST,P]),
-    Y_FSI = MultiFieldFESpace([Vw_FSI,Vu_FSI,Vv_FSI,Q]),
-    X_FSI = TransientMultiFieldFESpace([Uw_FSI,Uu_FSI,Uv_FSI,P])
-  )
-end
-
-function get_FE_spaces(
-  problem::Problem,
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:weak},
-  model,
-  model_fluid,
-  model_solid,
-  order,
-  bconds)
-
-  Vu_FSI_f = TestFESpace(
-    model=model_fluid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_f_tags]
-    )
-  Vv_FSI_f = TestFESpace(
-    model=model_fluid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_f_tags]
-    )
-  Vu_FSI_s = TestFESpace(
-    model=model_solid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_s_tags]
-    )
-  Vv_FSI_s = TestFESpace(
-    model=model_solid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_s_tags]
-    )
-  Vu_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vv_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vv_tags]
-    )
-  Q = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=Float64,
-    order=order-1,
-    reffe=:Lagrangian,
-    conformity=:C0
-    )
-
-  # Trial FE Spaces
-  Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uu_FSI_f = TransientTrialFESpace(Vu_FSI_f,bconds[:FSI_Vu_f_values])
-  Uv_FSI_f = TransientTrialFESpace(Vv_FSI_f,bconds[:FSI_Vv_f_values])
-  Uu_FSI_s = TransientTrialFESpace(Vu_FSI_s,bconds[:FSI_Vu_s_values])
-  Uv_FSI_s = TransientTrialFESpace(Vv_FSI_s,bconds[:FSI_Vv_s_values])
-  P = TrialFESpace(Q)
-
-  # Multifield FE Spaces
-  fe_spaces = (
-    Y_ST = MultiFieldFESpace([Vu_ST,Vv_ST,Q]),
-    X_ST = MultiFieldFESpace([Uu_ST,Uv_ST,P]),
-    Y_FSI = MultiFieldFESpace([Vu_FSI_f,Vv_FSI_f,Q,Vu_FSI_s,Vv_FSI_s]),
-    X_FSI = TransientMultiFieldFESpace([Uu_FSI_f,Uv_FSI_f,P,Uu_FSI_s,Uv_FSI_s])
-  )
-end
-
-function get_FE_spaces(
-  problem::Problem,
-  strategy::WeakForms.MeshStrategy{:biharmonic},
-  coupling::WeakForms.Coupling{:weak},
-  model,
-  model_fluid,
-  model_solid,
-  order,
-  bconds)
-
-  Vw_FSI_f = TestFESpace(
-    model=model_fluid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vw_f_tags]
-    )
-  Vu_FSI_f = TestFESpace(
-    model=model_fluid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_f_tags]
-    )
-  Vv_FSI_f = TestFESpace(
-    model=model_fluid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_f_tags]
-    )
-  Vu_FSI_s = TestFESpace(
-    model=model_solid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vu_s_tags]
-    )
-  Vv_FSI_s = TestFESpace(
-    model=model_solid,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:FSI_Vv_s_tags]
-    )
-  Vw_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vu_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vu_tags]
-    )
-  Vv_ST = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=VectorValue{2,Float64},
-    reffe=:Lagrangian,
-    order=order,
-    conformity =:H1,
-    dirichlet_tags=bconds[:ST_Vv_tags]
-    )
-  Q = TestFESpace(
-    model=model_fluid,
-    #model=model,
-    valuetype=Float64,
-    order=order-1,
-    reffe=:Lagrangian,
-    conformity=:C0
-    )
-
-  # Trial FE Spaces
-  Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
-  Uv_ST = TrialFESpace(Vv_ST,bconds[:ST_Vv_values])
-  Uw_FSI_f = TrialFESpace(Vw_FSI_f,bconds[:FSI_Vw_f_values])
-  Uu_FSI_f = TransientTrialFESpace(Vu_FSI_f,bconds[:FSI_Vu_f_values])
-  Uv_FSI_f = TransientTrialFESpace(Vv_FSI_f,bconds[:FSI_Vv_f_values])
-  Uu_FSI_s = TransientTrialFESpace(Vu_FSI_s,bconds[:FSI_Vu_s_values])
-  Uv_FSI_s = TransientTrialFESpace(Vv_FSI_s,bconds[:FSI_Vv_s_values])
-  P = TrialFESpace(Q)
-
-  # Multifield FE Spaces
-  fe_spaces = (
-    Y_ST = MultiFieldFESpace([Vw_ST,Vu_ST,Vv_ST,Q]),
-    X_ST = MultiFieldFESpace([Uw_ST,Uu_ST,Uv_ST,P]),
-    Y_FSI = MultiFieldFESpace([Vw_FSI_f,Vu_FSI_f,Vv_FSI_f,Q,Vu_FSI_s,Vv_FSI_s]),
-    X_FSI = TransientMultiFieldFESpace([Uw_FSI_f,Uu_FSI_f,Uv_FSI_f,P,Uu_FSI_s,Uv_FSI_s])
-  )
-end
-
-function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshStrategy;params=Dict())#, sol, xh0)
+function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms.MeshStrategy,models,Tₕ,quads,params)
 
   # Unpack parameters
-  model = params["model"]
-  bdegree = params["bdegree"]
-  xh0 = params["xh0"]
-  sol = params["sol"]
-  μ = params["μ"]
-  trian = params["trian"]
-  trian_Γi = params["trian_Γi"]
-  quad_Γi = params["quad_Γi"]
-  n_Γi = params["n_Γi"]
-  Um = params["Um"]
-  ⌀ = params["⌀"]
-  ρ = params["ρ"]
-  θ = params["θ"]
-  filePath = params["filePath"]
-  is_vtk = params["is_vtk"]
-  coupling = params["coupling"]
+  bdegree = params[:bdegree]
+  μ = params[:μ]
+  Um = params[:Um]
+  ⌀ = params[:⌀]
+  ρ = params[:ρ]
+  θ = params[:θ]
+  filePath = params[:filePath]
+  is_vtk = params[:is_vtk]
   if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
     uvpindex = [2,3,4]
   else
     uvpindex = [1,2,3]
   end
+
   ## Surface triangulation
-  trian_Γc = BoundaryTriangulation(model, "cylinder")
+  trian_Γc = BoundaryTriangulation(models[:Ω], "cylinder")
   quad_Γc = CellQuadrature(trian_Γc, bdegree)
   n_Γc = get_normal_vector(trian_Γc)
 
@@ -682,6 +263,9 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
   end
   traction_interface(n,u,v,p) = traction_closure(coupling,n,u,v,p)
 
+  # Get interface normal Vector
+  n_Γi = get_normal_vector(Tₕ[:Γi])
+
   ## Initialize arrays
   tpl = Real[]
   FDpl = Real[]
@@ -693,7 +277,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
   ## Loop over steps
   outfiles = paraview_collection(filePath, append=true
   ) do pvd
-  for (i,(xh, t)) in enumerate(sol)
+  for (i,(xh, t)) in enumerate(xht)
     println("STEP: $i, TIME: $t")
     println("============================")
 
@@ -710,12 +294,12 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     uhθ_Γc = θ*uh_Γc + (1.0-θ)*uhn_Γc
     vhθ_Γc = θ*vh_Γc + (1.0-θ)*vhn_Γc
     phθ_Γc = θ*ph_Γc + (1.0-θ)*phn_Γc
-    uh_Γi = restrict(uh, trian_Γi)
-    vh_Γi = restrict(vh, trian_Γi)
-    ph_Γi = restrict(ph, trian_Γi)
-    uhn_Γi = restrict(uhn, trian_Γi)
-    vhn_Γi = restrict(vhn, trian_Γi)
-    phn_Γi = restrict(phn, trian_Γi)
+    uh_Γi = restrict(uh, Tₕ[:Γi])
+    vh_Γi = restrict(vh, Tₕ[:Γi])
+    ph_Γi = restrict(ph, Tₕ[:Γi])
+    uhn_Γi = restrict(uhn, Tₕ[:Γi])
+    vhn_Γi = restrict(vhn, Tₕ[:Γi])
+    phn_Γi = restrict(phn, Tₕ[:Γi])
     uhθ_Γi = θ*uh_Γi + (1.0-θ)*uhn_Γi
     vhθ_Γi = θ*vh_Γi + (1.0-θ)*vhn_Γi
     phθ_Γi = θ*ph_Γi + (1.0-θ)*phn_Γi
@@ -724,7 +308,7 @@ function computeOutputs(problem::Problem{:elasticFlag},strategy::WeakForms.MeshS
     FDc, FLc = sum(integrate(traction_boundary(n_Γc,uhθ_Γc,vhθ_Γc,phθ_Γc), trian_Γc, quad_Γc))
 
     # Integrate on the interface
-    FDi, FLi = sum(integrate(traction_interface(n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), trian_Γi, quad_Γi))
+    FDi, FLi = sum(integrate(traction_interface(n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), Tₕ[:Γi], quads[:Γi]))
 
     FD = FDc + FDi
     FL = FLc + FLi
