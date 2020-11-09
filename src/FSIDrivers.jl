@@ -82,10 +82,11 @@ end
 function get_FSI_quadratures(triangulations,order)
   degree = 2*order
   bdegree = 2*order
+  quad   = CellQuadrature(triangulations[:Ω],degree)
   quad_s = CellQuadrature(triangulations[:Ωs],degree)
   quad_f = CellQuadrature(triangulations[:Ωf],degree)
   quad_Γi = CellQuadrature(triangulations[:Γi],bdegree)
-  Dict(:Ωs=>quad_s, :Ωf=>quad_f, :Γi=>quad_Γi)
+  Dict(:Ω=>quad, :Ωs=>quad_s, :Ωf=>quad_f, :Γi=>quad_Γi)
 end
 
 function get_Stokes_operator(FESpaces,strategy,trian,quad,μ,f)
@@ -136,6 +137,7 @@ function get_FSI_operator(FESpaces,coupling,strategy,Tₕ,quads,params)
   push!(Γi_params, :E=>m_params[:E])
   push!(Γi_params, :ν=>m_params[:ν])
   push!(Γi_params, :n=>n_Γi)
+  push!(Γi_params, :h=>hΓᵢ)
 
   # Define operator
   res_FSI_Ωf(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,f_params)

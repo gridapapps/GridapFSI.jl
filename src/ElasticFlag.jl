@@ -144,16 +144,16 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # Solve Stokes problem
   @timeit "ST problem" begin
-  println("Solving Stokes problem")
+  println("Defining Stokes solver")
   xh = Gridap.solve(op_ST)
   if(is_vtk)
-    writePVD(filePath, trian_fluid, [(xh, 0.0)])
+    writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
   end
 end
 
 # Solve FSI problem
 @timeit "FSI problem" begin
-println("Solving FSI problem")
+println("Defining FSI solver")
 xh0  = interpolate(xh,X_FSI(0.0))
 nls = NLSolver(
   show_trace = true,
@@ -329,7 +329,7 @@ function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms
       vh = xh[uvpindex[2]]
       ph = xh[uvpindex[3]]
       pvd[t] = createvtk(
-      trian,
+      Tₕ[:Ω],
       filePath * "_$t.vtu",
       cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
       )

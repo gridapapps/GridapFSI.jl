@@ -3,7 +3,8 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:strong},
   models,
   order,
-  bconds)
+  bconds;
+  constraint=nothing)
 
   Vu_FSI = TestFESpace(
     model=models[:Ω],
@@ -42,6 +43,7 @@ function get_FE_spaces(
     valuetype=Float64,
     order=order-1,
     reffe=:Lagrangian,
+    constraint=constraint,
     conformity=:C0
     )
 
@@ -66,7 +68,8 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:strong},
   models,
   order,
-  bconds)
+  bconds;
+  constraint=nothing)
 
   Vw_FSI = TestFESpace(
     model=models[:Ω],
@@ -121,6 +124,7 @@ function get_FE_spaces(
     valuetype=Float64,
     order=order-1,
     reffe=:Lagrangian,
+    constraint=constraint,
     conformity=:C0
     )
 
@@ -147,7 +151,8 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:weak},
   models,
   order,
-  bconds)
+  bconds;
+  constraint=nothing)
 
   Vu_FSI_f = TestFESpace(
     model=models[:Ωf],
@@ -202,6 +207,7 @@ function get_FE_spaces(
     valuetype=Float64,
     order=order-1,
     reffe=:Lagrangian,
+    constraint=constraint,
     conformity=:C0
     )
 
@@ -228,7 +234,8 @@ function get_FE_spaces(
   coupling::WeakForms.Coupling{:weak},
   models,
   order,
-  bconds)
+  bconds;
+  constraint=nothing)
 
   Vw_FSI_f = TestFESpace(
     model=models[:Ωf],
@@ -299,6 +306,7 @@ function get_FE_spaces(
     valuetype=Float64,
     order=order-1,
     reffe=:Lagrangian,
+    constraint=constraint,
     conformity=:C0
     )
 
