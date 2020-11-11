@@ -22,7 +22,7 @@ export execute
 
 struct Problem{Kind} end
 
-include("Drivers/FSI_FESpaces.jl")
+include("FSI_FESpaces.jl")
 include("ElasticFlag.jl")
 include("Analytical.jl")
 include("Oscillator.jl")

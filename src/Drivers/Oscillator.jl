@@ -107,23 +107,23 @@ function execute(problem::Problem{:oscillator}; kwargs...)
 
   # Setup equation parameters
   nsi_f_params = Dict(
-  "μ"=>μ_f,
-  "ρ"=>ρ_f,
+  :μ=>μ_f,
+  :ρ=>ρ_f,
   "E"=>E_m,
   "ν"=>ν_m,
   "α"=>α_Ω,
-  "fu"=>f,
-  "fv"=>f,
+  :fu=>f,
+  :fv=>f,
   )
   nsi_Γc_params = Dict(
   "n"=>n_Γc,
   "E"=>E_m,
   "ν"=>ν_m,
-  "μ"=>μ_f,
+  :μ=>μ_f,
   "α"=>α_Γc,
-  "γ"=>γ_f,
-  "h"=>hΓ,
-  "vD"=>du_y
+  :γ=>γ_f,
+  :h=>hΓ,
+  :vD=>du_y
   )
 
    # FSI problem
@@ -177,10 +177,10 @@ function execute(problem::Problem{:oscillator}; kwargs...)
 
   # Compute outputs
   out_params = Dict(
-  "μ"=>μ_f,
+  :μ=>μ_f,
   "Um"=>Um,
   "⌀"=>⌀,
-  "ρ"=>ρ_f,
+  :ρ=>ρ_f,
   "θ"=>θ,
   "model"=>model,
   "bdegree"=>bdegree,
@@ -406,14 +406,14 @@ function computeOutputs(problem::Problem{:oscillator},strategy::WeakForms.MeshSt
   bdegree = params["bdegree"]
   xh0 = params["xh0"]
   sol = params["sol"]
-  μ = params["μ"]
+  μ = params[:μ]
   trian = params["trian"]
   trian_Γc = params["trian_Γc"]
   quad_Γc = params["quad_Γc"]
   n_Γc = params["n_Γc"]
   Um = params["Um"]
   ⌀ = params["⌀"]
-  ρ = params["ρ"]
+  ρ = params[:ρ]
   θ = params["θ"]
   filePath = params["filePath"]
   is_vtk = params["is_vtk"]
