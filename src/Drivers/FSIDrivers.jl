@@ -111,7 +111,7 @@ function get_FSI_operator(FESpaces,coupling,strategy,Tₕ,quads,params)
     if ( typeof(coupling) == WeakForms.Coupling{:weak} )
       α_Γi = α_m * reindex(volf,get_left_boundary(Tₕ[:Γi]))
     else
-      α_Γi = α_m * reindex(volf,trian_Γi)
+      α_Γi = α_m * reindex(volf,Tₕ[:Γi])
     end
   else
     α_Ωf = α_m; α_Ωs = α_m; α_Γi = α_m
