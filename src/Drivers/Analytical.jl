@@ -185,7 +185,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   # Solve Stokes problem
   @timeit "ST problem" begin
   println("Defining Stokes solver")
-  xh = Gridap.solve(op_ST)
+  xh = solve(op_ST)
   if(is_vtk)
     writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
   end
@@ -219,7 +219,7 @@ iterations = 50
 )
 odes =  ThetaMethod(nls, dt, 0.5)
 solver = TransientFESolver(odes)
-xht = Gridap.solve(solver, op_FSI, xh0, t0, tf)
+xht = solve(solver, op_FSI, xh0, t0, tf)
 end
 
 # Compute outputs
