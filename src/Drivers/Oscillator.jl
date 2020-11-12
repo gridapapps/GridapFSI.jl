@@ -1,7 +1,10 @@
 function execute(problem::Problem{:oscillator}; kwargs...)
 
   # Define cylinder motion
-  u_y, du_y = get_cylinder_motion()
+  u_y = _get_kwarg(:u_y,kwargs)
+  du_y = _get_kwarg(:du_y,kwargs)
+  @assert(typeof(u_y)<:Function)
+  @assert(typeof(du_y)<:Function)
 
   # Problem setting (Default FSI-2)
   println("Setting Forced Oscillator cylinder problem parameters")
@@ -107,23 +110,23 @@ function execute(problem::Problem{:oscillator}; kwargs...)
 
   # Setup equation parameters
   nsi_f_params = Dict(
-  "μ"=>μ_f,
-  "ρ"=>ρ_f,
-  "E"=>E_m,
-  "ν"=>ν_m,
-  "α"=>α_Ω,
-  "fu"=>f,
-  "fv"=>f,
+  :μ=>μ_f,
+  :ρ=>ρ_f,
+  :E=>E_m,
+  :ν=>ν_m,
+  :α=>α_Ω,
+  :fu=>f,
+  :fv=>f,
   )
   nsi_Γc_params = Dict(
-  "n"=>n_Γc,
-  "E"=>E_m,
-  "ν"=>ν_m,
-  "μ"=>μ_f,
-  "α"=>α_Γc,
-  "γ"=>γ_f,
-  "h"=>hΓ,
-  "vD"=>du_y
+  :n=>n_Γc,
+  :E=>E_m,
+  :ν=>ν_m,
+  :μ=>μ_f,
+  :α=>α_Γc,
+  :γ=>γ_f,
+  :h=>hΓ,
+  :vD=>du_y
   )
 
    # FSI problem
@@ -153,7 +156,7 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   # Solve Stokes problem
   @timeit "ST problem" begin
     println("Solving Stokes problem")
-    xh = Gridap.solve(op_ST)
+    xh = solve(op_ST)
     if(is_vtk)
       writePVD(filePath, trian, [(xh, 0.0)])
     end
@@ -172,15 +175,15 @@ function execute(problem::Problem{:oscillator}; kwargs...)
     )
     odes =  ThetaMethod(nls, dt, θ)
     solver = TransientFESolver(odes)
-    sol_NSI = Gridap.solve(solver, op_FSI, xh0, t0, tf)
+    sol_NSI = solve(solver, op_FSI, xh0, t0, tf)
   end
 
   # Compute outputs
   out_params = Dict(
-  "μ"=>μ_f,
+  :μ=>μ_f,
   "Um"=>Um,
   "⌀"=>⌀,
-  "ρ"=>ρ_f,
+  :ρ=>ρ_f,
   "θ"=>θ,
   "model"=>model,
   "bdegree"=>bdegree,
@@ -196,60 +199,6 @@ function execute(problem::Problem{:oscillator}; kwargs...)
   )
   output = computeOutputs(problem,strategy;params=out_params)
 
-end
-
-function get_cylinder_motion()
-  # Parameters
-  A₀ = 1.5
-  A₁ = 8.5
-  A₂ = -11.1
-  A₃ = 2.6
-  B₀ = 4.2
-  B₁ = 11.3
-  B₂ = -68.7
-  B₃ = 50.5
-
-  # Physics Properties
-  k = 1.0
-  m = 1.0
-  D = 0.1
-  L = 1.0
-  ρ = 1.0e3
-  b = 1.0
-  V = 1.0
-
-  # Parameters
-  q₁ = 2
-  St = 0.2
-  Cx0 = 2.0
-  Cy0 = 0.3
-  A = 12
-  ε = 0.3
-
-  # Auxiliar variables
-  mₐ = π*ρ*D^2*L/4
-  mʳ = m/mₐ
-  ωₙ = sqrt(k/(m+mₐ))
-  ωₛ = St*V/(2*π*D)
-  Ωₙ = ωₙ/ωₛ
-  ζ = b/(2*sqrt((m+mₐ)*k))
-
-  function oscillator(x,p,t)
-    y, q, dy, dq = x
-    y_dot = dy
-    q_dot = dq
-    Cvy= (-2^π*St*dy*Cx0 + Cy0/q₁*q) * sqrt(1+4*π^2*St^2*dy^2)
-    dy_dot = ρ*D^2*L/(m+mₐ)*1.0/(8*π^2*St^2)*Cvy - 2*ζ*Ωₙ*dy - Ωₙ^2*y
-    dq_dot = A*dy_dot - ε*(q^2-1)*dq - q
-    dx = [y_dot; q_dot; dy_dot; dq_dot]
-  end
-
-  prob = ODEProblem(oscillator,[0.0;2.0;0.0;0.0],(0.0,100.0))
-  sol=DifferentialEquations.solve(prob)
-  y(t) = sol(t)[1]
-  dy(t) = sol(t)[3]
-
-  return y,dy
 end
 
 function get_boundary_conditions(
@@ -406,14 +355,14 @@ function computeOutputs(problem::Problem{:oscillator},strategy::WeakForms.MeshSt
   bdegree = params["bdegree"]
   xh0 = params["xh0"]
   sol = params["sol"]
-  μ = params["μ"]
+  μ = params[:μ]
   trian = params["trian"]
   trian_Γc = params["trian_Γc"]
   quad_Γc = params["quad_Γc"]
   n_Γc = params["n_Γc"]
   Um = params["Um"]
   ⌀ = params["⌀"]
-  ρ = params["ρ"]
+  ρ = params[:ρ]
   θ = params["θ"]
   filePath = params["filePath"]
   is_vtk = params["is_vtk"]
