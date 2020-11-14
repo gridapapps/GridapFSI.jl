@@ -71,6 +71,16 @@ function a_FSI_q_Ωf(x, y)
   ϕ, φ, q = y
   q * (J(∇(u))*(∇(v)⊙FinvT(∇(u))))
 end
+function a_fluid_Nitsche_Γ(x,xt,y,t,vD,n,μ,γ,h)
+  u, v, p = x
+  ut, vt, pt = xt
+  ϕ, φ, q = y
+  penalty = 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t)))
+  integration_by_parts = - (φ ⋅ (n⋅Pf_dev(μ,u,v))) - (φ ⋅ n)*Pf_vol(u,p)
+  nitsche = (n⋅Pf_dev(μ,u,φ)) ⋅ (v-vD(t)) + (n*Pf_vol(u,q)) ⋅ (v-vD(t))
+  penalty + integration_by_parts + nitsche
+end
+
 # Jacobians
 function da_FSI_du_ϕ_Ωf(strategy::MeshStrategy{:linearElasticity},x, dx, y, E, ν)
   u, v, p = x
@@ -155,4 +165,21 @@ function da_FSI_dv_q_Ωf(x, dx, y)
   du, dv, dp = dx
   ϕ, φ, q = y
   q * ( J(∇(u))*(∇(dv)⊙FinvT(∇(u))) )
+end
+function da_fluid_Nitsche_Γ(x,xt,dx,y,n,μ,γ,h)
+  u, v, p = x
+  du, dv, dp = dx
+  ut, vt, pt = xt
+  ϕ, φ, q = y
+  dP_tensor(u,du,v,dv,p) = dPf_dev_du(μ,u,du,v) + Pf_dev(μ,u,dv) + dPf_vol_du(u,du,p)
+  dP_scalar(u,dp) = Pf_vol(u,dp)
+  penalty = 0.0*(ϕ⋅du) + γ*μ/h*(φ⋅dv)
+  integration_by_parts = - φ ⋅ ( n⋅dP_tensor(u,du,v,dv,p) + n*dP_scalar(u,dp) )
+  nitsche = (n⋅Pf_dev(μ,u,φ)) ⋅ dv + (n⋅dPf_dev_du(μ,u,du,φ)) ⋅ v + (n*Pf_vol(u,q)) ⋅ dv + (n⋅dPf_vol_du(u,du,q)) ⋅ v
+  penalty + integration_by_parts + nitsche
+end
+function da_dt_fluid_Nitsche_Γ(dxt,y,μ,γ,h)
+  dut, dvt, dpt = dxt
+  ϕ, φ, q = y
+  γ*μ/h*(ϕ⋅dut)
 end
