@@ -8,6 +8,7 @@ using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
 using GridapFSI.WeakForms
+using GridapEmbedded
 using TimerOutputs
 using WriteVTK
 using LineSearches: BackTracking, HagerZhang
