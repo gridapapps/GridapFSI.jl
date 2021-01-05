@@ -1,53 +1,57 @@
-  # Fluid laws
-  @law σ_dev(μ,∇v,Finv) = μ*(∇v⋅Finv + (Finv')⋅(∇v'))
-  @law σ_dev(μ,ε) = 2.0*μ*ε
-  @law conv(c,∇v) = (∇v') ⋅ c
-  @law dconv(dc,∇dv,c,∇v) = conv(c,∇dv) + conv(dc,∇v)
-  Pf_dev(μ,u,v) = J(∇(u)) * (σ_dev(μ,∇(v),Finv(∇(u))) ⋅ FinvT(∇(u)))
-  Pf_vol(u,p) = - J(∇(u)) * p * tr(FinvT(∇(u)))
-  function dPf_dev_du(μ,u,du,v)
-    dJ(∇(u),∇(du)) * σ_dev(μ,∇(v),Finv(∇(u))) ⋅ FinvT(∇(u)) +
-    J(∇(u)) * σ_dev(μ,∇(v),dFinv(∇(u),∇(du))) ⋅ FinvT(∇(u)) +
-    J(∇(u)) * σ_dev(μ,∇(v),Finv(∇(u))) ⋅ dFinvT(∇(u),∇(du))
-  end
-  function dPf_vol_du(u,du,p)
-    - p * ( dJ(∇(u),∇(du)) * tr(FinvT(∇(u))) + J(∇(u)) * tr(dFinvT(∇(u),∇(du))) )
-  end
+# Map operations
+I(A) = one(A)
+F(∇u) = ∇u + I(∇u)
+J(∇u) = det(F(∇u))
+Finv(∇u) = inv(F(∇u))
+FinvT(∇u) = (Finv(∇u)')
+E(∇u) = 0.5 * ((F(∇u)')⋅F(∇u) - I(∇u))
 
-  # Mesh laws
-  @law I(A) = one(A)
-  @law α_m(J) = 1.0e-5 / J
-  @law σ_m(λ,μ,ε) = λ*tr(ε)*I(ε) + 2.0*μ*ε
-  @law dα_m(J,dJ) = - 1.0e-5 * 1.0 / (J*J) * dJ
-  @law dσ_m(λ,dλ,μ,dμ,ε,dε) = σ_m(λ,μ,dε) + σ_m(dλ,dμ,ε)
+# Map operations derivatives
+dF(∇du) = ∇du
+dJ(∇u,∇du) = J(∇u)*tr(Finv(∇u)⋅dF(∇du))
+dFinv(∇u,∇du) = -Finv(∇u) ⋅ dF(∇du) ⋅ Finv(∇u)
+dFinvT(∇u,∇du) = (dFinv(∇u,∇du)')
+dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
 
-  # Solid laws
-  @law invLaw(A) = inv(A)
-  @law logLaw(a) = log(a)
-  @law E(∇u) = 0.5 * ((F(∇u)')⋅F(∇u) - I(∇u))
-  @law dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
-  S_SV(∇u,λ,μ) =  2*μ*E(∇u) + λ*tr(E(∇u))*I(∇u)
-  dS_SV(∇u,∇du,λ,μ) = 2*μ*dE(∇u,∇du) + λ*tr(dE(∇u,∇du))*I(∇u)
-  Ps(λ,μ,u) = F(∇(u)) ⋅ S_SV(∇(u),λ,μ)
-  # C(F) = (F')⋅F
-  # function S_NH(∇u,λ,μ)
-  #   Cinv = invLaw(C(F(∇u)))
-  #   μ*(I(∇u)-Cinv) + λ*logLaw(J(∇u))*Cinv
-  # end
-  # function dS_NH(∇u,∇du,λ,μ)
-  #   Cinv = invLaw(C(F(∇u)))
-  #   _dE = dE(∇du,∇u)
-  #   λ*(Cinv⊙_dE)*Cinv + 2*(μ-λ*logLaw(J(∇u)))*Cinv⋅_dE⋅(Cinv')
-  # end
+# Fluid constitutive laws
+# Cauchy stress
+σᵥ_Ωf(μ,ε) = 2.0*μ*ε
+σᵥ_Ωf(μ,∇v,Finv) = μ*(∇v⋅Finv + (Finv')⋅(∇v'))
+# First Piola-Kirchhoff stress
+Pᵥ_Ωf(μ,u,v) = J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * FinvT∘∇(u)
+Pₚ_Ωf(u,p) = - J∘∇(u) * p * tr(FinvT∘∇(u))
+# First Piola-Kirchhoff stress Jacobian
+dPᵥ_Ωf_du(μ,u,du,v) = dJ∘(∇(u),∇(du)) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * FinvT∘∇(u) +
+                      J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),dFinv∘(∇(u),∇(du))))' * FinvT∘∇(u) +
+                      J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * dFinvT∘(∇(u),∇(du))
+dPₚ_Ωf_du(u,du,p) = - p * ( dJ∘(∇(u),∇(du)) * tr(FinvT∘∇(u)) +
+                           J∘∇(u) * tr(dFinvT∘(∇(u),∇(du))) )
+dPᵥ_Ωf_dv(μ,u,dv) = Pᵥ_Ωf(μ,u,dv)
+dPₚ_Ωf_dp(u,dp) = Pₚ_Ωf(u,dp)
+# Convective term
+conv(c,∇v) = (∇v') ⋅ c
+dconv(dc,∇dv,c,∇v) = conv(c,∇dv) + conv(dc,∇v)
 
-  # Maps
-  @law F(∇u) = ∇u + one(∇u)
-  @law J(∇u) = det(F(∇u))
-  @law Finv(∇u) = inv(F(∇u))
-  @law FinvT(∇u) = (Finv(∇u)')
+# Solid constitutive laws
+# Second Piola-Kirchhoff stress
+Sₛᵥ_Ωs(λ,μ,u) = 2*μ*E∘∇(u) + λ*tr(E∘∇(u))*I∘∇(u)
+dSₛᵥ_Ωs_du(λ,μ,u,du) = 2*μ*dE∘(∇(u),∇(du)) + λ*tr(dE∘(∇(u),∇(du)))*I∘∇(u)
+# First Piola-Kirchhoff stress
+Pₛᵥ_Ωs(λ,μ,u) = F∘∇(u) ⋅ Sₛᵥ_Ωs(λ,μ,u)
+dPₛᵥ_Ωs_du(λ,μ,u,du) = dF∘∇(du) ⋅ Sₛᵥ_Ωs(λ,μ,u) + F∘∇(u) ⋅ dSₛᵥ_Ωs(λ,μ,u,du)
+# C(F) = (F')⋅F
+# function S_NH(∇u,λ,μ)
+#   Cinv = invLaw(C(F(∇u)))
+#   μ*(I(∇u)-Cinv) + λ*logLaw(J(∇u))*Cinv
+# end
+# function dS_NH(∇u,∇du,λ,μ)
+#   Cinv = invLaw(C(F(∇u)))
+#   _dE = dE(∇du,∇u)
+#   λ*(Cinv⊙_dE)*Cinv + 2*(μ-λ*logLaw(J(∇u)))*Cinv⋅_dE⋅(Cinv')
+# end
 
-  # Map derivatives
-  @law dF(∇du) = ∇du
-  @law dJ(∇u,∇du) = J(F(∇u))*tr(inv(F(∇u))⋅dF(∇du))
-  @law dFinv(∇u,∇du) = -Finv(∇u) ⋅ dF(∇du) ⋅ Finv(∇u)
-  @law dFinvT(∇u,∇du) = (dFinv(∇u,∇du)')
+# Mesh constitutive laws
+αₘ(J) = 1.0e-5 / J
+σₘ(λ,μ,ε) = λ*tr(ε)*I(ε) + 2.0*μ*ε
+dαₘ(J,dJ) = - 1.0e-5 * 1.0 / (J*J) * dJ
+dσₘ(λ,dλ,μ,dμ,ε,dε) = σ_m(λ,μ,dε) + σ_m(dλ,dμ,ε)
