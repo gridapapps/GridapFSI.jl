@@ -1,185 +1,96 @@
 # Stokes
 # ======
-function a_ST_vp(x,y,μ)
-  v, p = x
-  φ, q = y
-  (ε(φ) ⊙ σ_dev(μ,ε(v))) - ((∇⋅φ) * p) + (q * (∇⋅v))
+a_ST((v,p),(φ,q),μ,dΩ) = ∫( ε(φ) ⊙ (σᵥ_Ωf∘(μ,ε(v))) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
+l_ST((φ,q),f,dΩ) = ∫( φ⋅f )dΩ
+
+
+# Navier-Stokes
+# =============
+function a_NS((v,p),(vt,pt),(φ,q),μ,ρ,dΩ)
+  ∫( ρ*(ϕ ⋅ vt) + ρ*( conv∘(v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf∘(μ,ε(v))) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
 end
-function l_ST_vp(y,μ,f)
-  φ, q = y
-  (φ⋅f)
+function da_NS_dx((v,p),(dv,dp),(φ,q),μ,ρ,dΩ)
+  ∫( 0.0*ρ*(ϕ ⋅ dv) + ρ*( dconv∘(dv,∇(dv),v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf∘(μ,ε(dv))) - (∇⋅φ) * dp + q * (∇⋅dv) )dΩ
 end
+function da_NS_dxt((dvt,dpt),(φ,q),ρ,dΩ)
+  ∫( ρ*(ϕ ⋅ dvt) )dΩ
+end
+l_NS((φ,q),f,dΩ) = ∫( φ⋅f )dΩ
+
 
 # FSI
 # ===
-# Residuals
-function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:laplacian},x,y,α)
-  u, v, p = x
-  ϕ, φ, q = y
-  α * (∇(ϕ) ⊙ ∇(u))
+# LHS terms
+function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:laplacian},(u,v,p),(ϕ,φ,q),α,dΩ)
+  ∫( α * (∇(ϕ) ⊙ ∇(u)) )dΩ
 end
-# Residuals
-function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:linearElasticity},x,y,E,ν)
-  u, v, p = x
-  ϕ, φ, q = y
-  (λ_m,μ_m) = lame_parameters(E,ν)
-  α(u) = 1.0#α_m(J(∇(u)))
-  λ(u) = α(u)*λ_m
-  μ(u) = α(u)*μ_m
-  (ε(ϕ) ⊙ σ_m(λ(u),μ(u),ε(u)))
+function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),λ,μ,dΩ)
+  ∫( ε(ϕ) ⊙ (σₘ∘(λ,μ,ε(u))) )dΩ
 end
-function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:neoHookean},x,y,E,ν)
-  u, v, p = x
-  ϕ, φ, q = y
-  (λ_m,μ_m) = lame_parameters(E,ν)
-  (dE(∇(ϕ),∇(u)) ⊙ S_NH(∇(u),λ_m,μ_m))
+function a_FSI_ψϕ_Ωf(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α,dΩ)
+  ∫( α * ( (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) + (∇(ϕ) ⊙ ∇(w)) ) )dΩ
 end
-function a_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,α)
-  w, u, v, p = x
-  ψ, ϕ, φ, q = y
-  α * ( (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) )
+function a_FSI_φ_Ωf((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
+  ∫( φ ⋅ ( J∘∇(u) * ρ * vt ) +
+     φ ⋅ ( J∘∇(u) * ρ * conv∘( (Finv∘∇(u))⋅(v-ut), ∇(v) ) ) +
+     ∇(φ) ⊙ Pᵥ_Ωf(μ,u,v) +
+     (∇⋅φ) * Pₚ_Ωf(u,p) )dΩ
 end
-function a_FSI_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,y,α)
-  w, u, v, p = x
-  ψ, ϕ, φ, q = y
-  α * (∇(ϕ) ⊙ ∇(w))
+function a_FSI_q_Ωf((u,v,p),(ϕ,φ,q),dΩ)
+  ∫( q * (J∘∇(u) * (∇(v) ⊙ FinvT∘∇(u))) )dΩ
 end
-function l_FSI_ϕ_Ωf(strategy::MeshStrategy,y,f,t)
-  ϕ, φ, q = y
-  (ϕ⋅f(t))
-end
-function l_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},y,f,t)
-  ψ, ϕ, φ, q = y
-  (ψ⋅f(t))
-end
-function a_FSI_φ_Ωf(x, xt, y, μ, ρ)
-  u, v, p = x
-  ut, vt, pt = xt
-  ϕ, φ, q = y
-  temp_term = φ ⋅ ( J(∇(u)) * ρ * vt )
-  conv_term = φ ⋅ ( J(∇(u)) * ρ * conv(	Finv(∇(u))⋅(v-ut), ∇(v)) )
-  visc_term = ( ∇(φ) ⊙ Pf_dev(μ,u,v) )
-  pres_term = (∇⋅φ) * Pf_vol(u,p)
-  temp_term + conv_term + visc_term + pres_term
-end
-function l_FSI_φ_Ωf(y,f,t)
-  ϕ, φ, q = y
-  (φ⋅f(t))
-end
-function a_FSI_q_Ωf(x, y)
-  u, v, p = x
-  ϕ, φ, q = y
-  q * (J(∇(u))*(∇(v)⊙FinvT(∇(u))))
-end
-function a_fluid_Nitsche_Γ(x,xt,y,t,vD,n,μ,γ,h)
-  u, v, p = x
-  ut, vt, pt = xt
-  ϕ, φ, q = y
-  penalty = 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t)))
-  integration_by_parts = - (φ ⋅ (n⋅Pf_dev(μ,u,v))) - (φ ⋅ n)*Pf_vol(u,p)
-  nitsche = (n⋅Pf_dev(μ,u,φ)) ⋅ (v-vD(t)) + (n*Pf_vol(u,q)) ⋅ (v-vD(t))
-  penalty + integration_by_parts + nitsche
+function a_FSI_ΓfD((v,p),(vt,pt),(φ,q),t,vD,n,μ,γ,h,dΓ)
+  ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t))) +
+    -(φ ⋅ (n⋅Pᵥ_Ωf(μ,u,v))) - (φ ⋅ n)*Pₚ_Ωf(u,p) +
+    (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ (v-vD(t)) + (n*Pₚ_Ωf(u,q)) ⋅ (v-vD(t)) )dΓ
 end
 
-# Jacobians
-function da_FSI_du_ϕ_Ωf(strategy::MeshStrategy{:linearElasticity},x, dx, y, E, ν)
-  u, v, p = x
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  (λ_m,μ_m) = lame_parameters(E,ν)
-  α(u) = 1.0#α_m(J(∇(u)))
-  λ(u) = α(u)*λ_m
-  μ(u) = α(u)*μ_m
-  dα(u,du) = 0.0#dα_m(J(∇(u)),dJ(∇(u),∇(du)))
-  dλ(u,du) = dα(u,du)*λ_m
-  dμ(u,du) = dα(u,du)*μ_m
-  (ε(ϕ) ⊙ dσ_m(λ(u),dλ(u,du),μ(u),dμ(u,du),ε(u),ε(du)))
+# LHS linearized terms
+function da_FSI_φ_Ωf_du((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
+  ∫( φ ⋅ ( dJ∘(∇(u),∇(du)) * ρ * vt ) +
+     φ ⋅ ( ( dJ∘(∇(u),∇(du)) * ρ * conv∘( Finv∘∇(u)⋅(v-ut), ∇(v)) ) +
+           ( J∘∇(u) * ρ * conv∘( dFinv∘(∇(u),∇(du))⋅(v-ut), ∇(v)) ) ) +
+     ∇(φ) ⊙ dPᵥ_Ωf_du(μ,u,du,v) +
+     (∇⋅φ) * dPₚ_Ωf_du(u,du,p) )dΩ
 end
-function da_FSI_du_ϕ_Ωf(strategy::MeshStrategy{:neoHookean},x, dx, y, E, ν)
-  u, v, p = x
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  (λ_m,μ_m) = lame_parameters(E,ν)
-  ( dE(∇(ϕ),∇(u)) ⊙ dS_NH(∇(u),∇(du),λ_m,μ_m) ) + ( ∇(ϕ) ⊙ ( S_NH(∇(u),λ_m,μ_m)⋅∇(du) ) )
+function da_FSI_φ_Ωf_dv((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
+  ∫( φ ⋅ ( J∘∇(u) * ρ * dconv( (Finv∘∇(u))⋅dv, ∇(dv), (Finv∘∇(u))⋅(v-ut) , ∇(v)) ) +
+     ∇(φ) ⊙ Pᵥ_Ωf(μ,u,dv) )dΩ
 end
-function da_FSI_dx_ψ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,α)
-  w, u, v, p = x
-  dw, du, dv, dp = dx
-  ψ, ϕ, φ, q = y
-  α * (  (ψ⋅dw) + (∇(ψ) ⊙ ∇(du)) )
+function da_FSI_φ_Ωf_dp((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
+  ∫( (∇⋅φ) * Pₚ_Ωf_dp(u,dp) )dΩ
 end
-function da_FSI_dx_ϕ_Ωf(strategy::MeshStrategy{:biharmonic},x,dx,y,α)
-  w, u, v, p = x
-  dw, du, dv, dp = dx
-  ψ, ϕ, φ, q = y
-  α * ( (∇(ϕ) ⊙ ∇(dw)) )
+function da_FSI_φ_Ωf_dut((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
+  ∫( - φ ⋅ ( (J∘∇(u)) * ρ * conv∘(	(Finv∘∇(u))⋅dut, ∇(v)) ) )dΩ
 end
-function da_FSI_du_φ_Ωf(x, xt, dx, y, μ, ρ)
-  u, v, p = x
-  ut, vt, pt = xt
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  temp_term = φ ⋅ ( dJ(∇(u),∇(du)) * ρ * vt )
-  conv_term = φ ⋅ ( ( dJ(∇(u),∇(du)) * ρ * conv( Finv(∇(u))⋅(v-ut), ∇(v)) ) +
-                    ( J(∇(u)) * ρ * conv(	dFinv(∇(u),∇(du))⋅(v-ut), ∇(v)) ) )
-  visc_term = ∇(φ) ⊙ dPf_dev_du(μ,u,du,v)
-  pres_term = (∇⋅φ) * dPf_vol_du(u,du,p)
-  temp_term + conv_term + visc_term + pres_term
+function da_FSI_φ_Ωf_dvt((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
+  ∫( φ ⋅ ( (J∘∇(u)) * ρ * dvt ) )dΩ
 end
-function da_FSI_dv_φ_Ωf(x, xt, dx, y, μ, ρ)
-  u, v, p = x
-  ut, vt, pt = xt
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  conv_term = φ ⋅ ( J(∇(u)) * ρ * dconv( Finv(∇(u))⋅dv, ∇(dv), Finv(∇(u))⋅(v-ut) , ∇(v)) )
-  visc_term = ( ∇(φ) ⊙ Pf_dev(μ,u,dv) )
-  conv_term + visc_term
+function da_FSI_q_Ωf_du((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
+  ∫( q * ( (dJ∘(∇(u),∇(du))) * (∇(v) ⊙ (FinvT∘∇(u))) + (J∘∇(u)) * (∇(v) ⊙ (dFinvT∘(∇(u),∇(du)))) ) )dΩ
 end
-function da_FSI_dp_φ_Ωf(x, dx, y)
-  u, v, p = x
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  pres_term = (∇⋅φ) * Pf_vol(u,dp)
+function da_FSI_q_Ωf_dv((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
+  ∫( q * ( (J∘∇(u)) * (∇(dv) ⊙ (FinvT∘∇(u))) ) )dΩ
 end
-function da_FSI_dut_φ_Ωf(x, dxt, y, ρ)
-  u, v, p = x
-  dut, dvt, dpt = dxt
-  ϕ, φ, q = y
-  conv_term = - φ ⋅ ( J(∇(u)) * ρ * conv(	Finv(∇(u))⋅dut, ∇(v)) )
+function da_FSI_ΓfD_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ)
+  dP_tensor(u,du,v,dv,p) = dPᵥ_Ωf_du(μ,u,du,v) + Pᵥ_Ωf_dv(μ,u,dv) + dPₚ_Ωf_du(u,du,p)
+  dP_scalar(u,dp) = Pₚ_Ωf_dp(u,dp)
+  ∫( 0.0*(ϕ⋅du) + γ*μ/h*(φ⋅dv) +
+     - φ ⋅ ( n⋅dP_tensor(u,du,v,dv,p) + n*dP_scalar(u,dp) ) +
+     (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ dv + (n⋅dPᵥ_Ωf_du(μ,u,du,φ)) ⋅ v +
+     (n*Pₚ_Ωf(u,q)) ⋅ dv + (n⋅dPₚ_Ωf_du(u,du,q)) ⋅ v )dΓ
+end
+function da_FSI_ΓfD_dxt((dut,dvt,dpt),(ϕ,φ,q),μ,γ,h,dΓ)
+  ∫( γ*μ/h*(ϕ⋅dut) )dΓ
 end
 
-function da_FSI_dvt_φ_Ωf(x, dxt, y, ρ)
-  u, v, p = x
-  dut, dvt, dpt = dxt
-  ϕ, φ, q = y
-  temp_term = φ ⋅ ( J(∇(u)) * ρ * dvt )
+# RHS terms
+function l_FSI_ϕ_Ωf(strategy::MeshStrategy,(ϕ,φ,q),f,t,dΩ)
+  ∫( ϕ⋅f(t) )dΩ
 end
-function da_FSI_du_q_Ωf(x, dx, y)
-  u, v, p = x
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  q * ( dJ(∇(u),∇(du))*(∇(v)⊙FinvT(∇(u))) + J(∇(u))*(∇(v)⊙dFinvT(∇(u),∇(du))) )
+function l_FSI_ψ_Ωf(strategy::MeshStrategy{:biharmonic},(ψ,ϕ,φ,q),f,t,dΩ)
+  ∫( ψ⋅f(t) )dΩ
 end
-function da_FSI_dv_q_Ωf(x, dx, y)
-  u, v, p = x
-  du, dv, dp = dx
-  ϕ, φ, q = y
-  q * ( J(∇(u))*(∇(dv)⊙FinvT(∇(u))) )
-end
-function da_fluid_Nitsche_Γ(x,xt,dx,y,n,μ,γ,h)
-  u, v, p = x
-  du, dv, dp = dx
-  ut, vt, pt = xt
-  ϕ, φ, q = y
-  dP_tensor(u,du,v,dv,p) = dPf_dev_du(μ,u,du,v) + Pf_dev(μ,u,dv) + dPf_vol_du(u,du,p)
-  dP_scalar(u,dp) = Pf_vol(u,dp)
-  penalty = 0.0*(ϕ⋅du) + γ*μ/h*(φ⋅dv)
-  integration_by_parts = - φ ⋅ ( n⋅dP_tensor(u,du,v,dv,p) + n*dP_scalar(u,dp) )
-  nitsche = (n⋅Pf_dev(μ,u,φ)) ⋅ dv + (n⋅dPf_dev_du(μ,u,du,φ)) ⋅ v + (n*Pf_vol(u,q)) ⋅ dv + (n⋅dPf_vol_du(u,du,q)) ⋅ v
-  penalty + integration_by_parts + nitsche
-end
-function da_dt_fluid_Nitsche_Γ(dxt,y,μ,γ,h)
-  dut, dvt, dpt = dxt
-  ϕ, φ, q = y
-  γ*μ/h*(ϕ⋅dut)
+function l_FSI_φ_Ωf((ϕ,φ,q),f,t,dΩ)
+  ∫( φ⋅f(t) )dΩ
 end
