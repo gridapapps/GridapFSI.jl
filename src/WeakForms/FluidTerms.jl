@@ -27,8 +27,8 @@ end
 function a_NS_ALE_ϕ(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),λ,μ,dΩ)
   ∫( ε(ϕ) ⊙ (σₘ∘(λ,μ,ε(u))) )dΩ
 end
-function a_NS_ALE_ψϕ(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α,dΩ)
-  ∫( α * ( (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) + (∇(ϕ) ⊙ ∇(w)) ) )dΩ
+function a_NS_ALE_ψϕ(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α₁,α₂,dΩ)
+  ∫( α₁ * ( - (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) ) + α₂ * ( (∇(ϕ) ⊙ ∇(w)) ) )dΩ
 end
 function a_NS_ALE_φ((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
   ∫( φ ⋅ ( J∘∇(u) * ρ * vt ) +
@@ -39,7 +39,7 @@ end
 function a_NS_ALE_q((u,v,p),(ϕ,φ,q),dΩ)
   ∫( q * (J∘∇(u) * (∇(v) ⊙ FinvT∘∇(u))) )dΩ
 end
-function a_NS_ALE_ΓfD((v,p),(vt,pt),(φ,q),t,vD,n,μ,γ,h,dΓ)
+function a_NS_ALE_ΓD((v,p),(vt,pt),(φ,q),t,vD,n,μ,γ,h,dΓ)
   ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t))) +
     -(φ ⋅ (n⋅Pᵥ_Ωf(μ,u,v))) - (φ ⋅ n)*Pₚ_Ωf(u,p) +
     (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ (v-vD(t)) + (n*Pₚ_Ωf(u,q)) ⋅ (v-vD(t)) )dΓ
@@ -80,7 +80,7 @@ function da_NS_ALE_ΓfD_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ
      (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ dv + (n⋅dPᵥ_Ωf_du(μ,u,du,φ)) ⋅ v +
      (n*Pₚ_Ωf(u,q)) ⋅ dv + (n⋅dPₚ_Ωf_du(u,du,q)) ⋅ v )dΓ
 end
-function da_NS_ALE_ΓfD_dxt((dut,dvt,dpt),(ϕ,φ,q),μ,γ,h,dΓ)
+function da_NS_ALE_ΓD_dxt((dut,dvt,dpt),(ϕ,φ,q),μ,γ,h,dΓ)
   ∫( γ*μ/h*(ϕ⋅dut) )dΓ
 end
 
