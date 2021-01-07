@@ -1,42 +1,16 @@
-function a_FSI_ϕ_Ωs(x, xt, y)
-  u,v = x
-  ut, vt = xt
-  ϕ,φ = y
-  (ϕ⋅ut) - (ϕ⋅v)
+# Primal Finite Elasticity
+# ========================
+function a_PFE((u,v),(ut,vt),(ϕ,φ),λ,μ,dΩ)
+  ∫( ϕ⋅ut - ϕ⋅v +
+     φ⋅(ρ*vt) + (∇(φ) ⊙ Pₛᵥ_Ωs(λ,μ,u)) )dΩ
 end
-function l_FSI_ϕ_Ωs(y,f,t)
-  ϕ,φ = y
-  (ϕ⋅f(t))
+function da_PFE_dx((u,v),(du,dv),(ϕ,φ),ρ,λ,μ,dΩ)
+  ∫( 0.0*(du⋅ϕ) - (ϕ⋅dv) +
+     0.0*(φ⋅(ρ*dv)) + (∇(φ) ⊙ dPₛᵥ_Ωs_du(λ,μ,u)) )dΩ
 end
-function a_FSI_φ_Ωs(x, xt, y, ρ, Es, νs)
-  u,v = x
-  ut, vt = xt
-  ϕ,φ = y
-  (λ,μ) = lame_parameters(Es,νs)
-  (φ⋅(ρ*vt)) + (∇(φ) ⊙ Ps(λ,μ,u))
+function da_PFE_dxt((dut,dvt),(ϕ,φ),ρ,dΩ)
+  ∫( dut⋅ϕ + φ⋅(ρ*dvt) )dΩ
 end
-function l_FSI_φ_Ωs(y,f,t)
-  ϕ,φ = y
-  (φ⋅f(t))
-end
-
-
-function da_FSI_dx_ϕ_Ωs(x, dx, y)
-  u,v = x
-  du,dv = dx
-  ϕ,φ = y
-  0.0*(du⋅ϕ) - (ϕ⋅dv)
-end
-function da_FSI_dx_φ_Ωs(x, dx, y, ρ, E, ν)
-  u,v = x
-  du,dv = dx
-  ϕ,φ = y
-  (λ,μ) = lame_parameters(E,ν)
-  0.0*(φ⋅(ρ*dv)) + (∇(φ) ⊙ ( dF(∇(du))⋅S_SV(∇(u),λ,μ) ) ) + ( ∇(φ) ⊙ (F(∇(u))⋅dS_SV(∇(u),∇(du),λ,μ)) )
-end
-function da_FSI_dxt_Ωs(x, dxt, y, ρ)
-  u, v = x
-  dut, dvt = dxt
-  ϕ, φ = y
-  ϕ⋅dut + (φ⋅(ρ*dvt))
+function l_PFE((ϕ,φ),f₁,f₂,t,dΩ)
+  ∫( ϕ⋅f₁(t) + φ⋅f₂(t) )dΩ
 end
