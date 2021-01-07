@@ -29,67 +29,56 @@ include("InterfaceTerms.jl")
 Stokes residual:
 R([u,p],[v,q]=a([u,p],[v,q])-l([v,q]))
 """
-function stokes_residual(x,y,μ::Real,f)
-    a_ST_vp(x,y,μ) - l_ST_vp(y,μ,f)
+function stokes_residual(x,y,μ::Real,f,dΩ)
+  a_ST(x,y,μ,dΩ) - l_ST(y,f,dΩ)
 end
-function stokes_residual(strategy::MeshStrategy,x,y,μ::Real,f)
-    u, v, p = x
-    ϕ, φ, q = y
-    (ε(ϕ) ⊙ σ_dev(μ,ε(u))) + stokes_residual([v,p],[φ,q],μ::Real,f)
+function stokes_residual(strategy::MeshStrategy,(u,v,p),(ϕ,φ,q),μ::Real,f,dΩ)
+  ∫(ϕ⋅u)dΩ + stokes_residual((v,p),(φ,q),μ,f,dΩ)
 end
-function stokes_residual(strategy::MeshStrategy{:biharmonic},x,y,μ::Real,f)
-    w, u, v, p = x
-    ψ, ϕ, φ, q = y
-    _strategy = MeshStrategy{:linearElasticity}()
-    (ε(ψ) ⊙ σ_dev(μ,ε(w))) + stokes_residual(_strategy,[u,v,p],[ϕ,φ,q],μ,f)
+function stokes_residual(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),μ::Real,f,dΩ)
+  ∫(ϕ⋅u + ψ⋅w)dΩ + stokes_residual((v,p),(φ,q),μ,f,dΩ)
 end
 function stokes_jacobian(dx,y,μ::Real)
-    a_ST_vp(dx,y,μ)
+  a_ST(dx,y,μ,dΩ)
 end
-function stokes_jacobian(strategy::MeshStrategy,dx,y,μ::Real)
-    du, dv, dp = dx
-    ϕ, φ, q = y
-    (ε(ϕ) ⊙ σ_dev(μ,ε(du))) + stokes_jacobian([dv,dp],[φ,q],μ)
+function stokes_jacobian(strategy::MeshStrategy,(du,dv,dp),(ϕ,φ,q),μ::Real,dΩ)
+  ∫(ϕ⋅du)dΩ + + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)
 end
-function stokes_jacobian(strategy::MeshStrategy{:biharmonic},dx,y,μ::Real)
-    dw, du, dv, dp = dx
-    ψ, ϕ, φ, q = y
-    _strategy = MeshStrategy{:linearElasticity}()
-    (ε(ψ) ⊙ σ_dev(μ,ε(dw))) + stokes_jacobian(_strategy,[du,dv,dp],[ϕ,φ,q],μ)
+function stokes_jacobian(strategy::MeshStrategy{:biharmonic},(dw,du,dv,dp),(ψ,ϕ,φ,q),μ::Real,dΩ)
+  ∫(ϕ⋅du + ψ⋅dw)dΩ + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)
 end
-
 
 # FSI (fluid)
-fluid_residual_Ω(strategy::MeshStrategy,t,x,xt,y,params) =
-    a_FSI_ϕ_Ωf(strategy,x,y,params[:E],params[:ν]) +
-    a_FSI_φ_Ωf(x,xt,y,params[:μ],params[:ρ]) +
-    a_FSI_q_Ωf(x, y) -
-    l_FSI_ϕ_Ωf(strategy,y,params[:fu],t) -
-    l_FSI_φ_Ωf(y,params[:fv],t)
-fluid_jacobian_Ω(strategy::MeshStrategy,x,xt,dx,y,params) =
-    da_FSI_du_ϕ_Ωf(strategy,x,dx,y,params[:E],params[:ν]) +
-    da_FSI_du_φ_Ωf(x,xt,dx,y,params[:μ],params[:ρ]) +
-    da_FSI_dv_φ_Ωf(x,xt,dx,y,params[:μ],params[:ρ]) +
-    da_FSI_dp_φ_Ωf(x,dx,y) +
-    da_FSI_du_q_Ωf(x,dx,y) +
-    da_FSI_dv_q_Ωf(x,dx,y)
-fluid_jacobian_t_Ω(strategy::MeshStrategy,x,xt,dxt,y,params) =
-    da_FSI_dut_φ_Ωf(x,dxt,y,params[:ρ]) +
-    da_FSI_dvt_φ_Ωf(x,dxt,y,params[:ρ])
+function fluid_residual_Ω(st::MeshStrategy{:linearElasticity},t,x,xt,y,params,dΩ)
+  λₘ,μₘ = lame_parameters(params[:E],params[:ν])
+  μ = params[:μ]; ρ = params[:ρ]; fᵤ = params[:fu]; fᵥ = params[:fv]
+  a_mesh(st,x,y,λₘ,μₘ,dΩ) + a_NS_ALE(x,xt,y,μ,ρ,dΩ) - l_mesh(st,y,fᵤ,t,dΩ) - l_NS_ALE(y,fᵥ,t,dΩ)
+end
+function fluid_residual_Ω(st::MeshStrategy{:laplacian},t,x,xt,y,params,dΩ)
+  αₘ = params[:α]; μ = params[:μ]; ρ = params[:ρ]; fᵤ = params[:fu]; fᵥ = params[:fv]
+  a_mesh(st,x,y,αₘ,dΩ) + a_NS_ALE(x,xt,y,μ,ρ,dΩ) - l_mesh(st,y,fᵤ,t,dΩ) - l_NS_ALE(y,fᵥ,t,dΩ)
+end
 
-fluid_residual_Ω(strategy::MeshStrategy{:laplacian},t,x,xt,y,params) =
-    a_FSI_ϕ_Ωf(strategy,x,y,params[:α]) +
-    a_FSI_φ_Ωf(x,xt,y,params[:μ],params[:ρ]) +
-    a_FSI_q_Ωf(x, y) -
-    l_FSI_ϕ_Ωf(strategy,y,params[:fu],t) -
-    l_FSI_φ_Ωf(y,params[:fv],t)
-fluid_jacobian_Ω(strategy::MeshStrategy{:laplacian},x,xt,dx,y,params) =
-    a_FSI_ϕ_Ωf(strategy,dx,y,params[:α]) +
-    da_FSI_du_φ_Ωf(x,xt,dx,y,params[:μ],params[:ρ]) +
-    da_FSI_dv_φ_Ωf(x,xt,dx,y,params[:μ],params[:ρ]) +
-    da_FSI_dp_φ_Ωf(x,dx,y) +
-    da_FSI_du_q_Ωf(x,dx,y) +
-    da_FSI_dv_q_Ωf(x,dx,y)
+
+function fluid_jacobian_Ω(st::MeshStrategy{:linearElasticity},x,xt,dx,y,params,dΩ)
+  λₘ,μₘ = lame_parameters(params[:E],params[:ν])
+  μ = params[:μ]; ρ = params[:ρ]
+  a_mesh(st,dx,y,λₘ,μₘ,dΩ) +  da_NS_ALE_dx(x,xt,dx,y,μ,ρ,dΩ)
+end
+function fluid_jacobian_Ω(st::MeshStrategy{:laplacian},x,xt,dx,y,params,dΩ)
+  αₘ = params[:α]; μ = params[:μ]; ρ = params[:ρ]
+  a_mesh(st,dx,y,αₘ,dΩ) +  da_NS_ALE_dx(x,xt,dx,y,μ,ρ,dΩ)
+end
+
+
+function fluid_jacobian_t_Ω(strategy::MeshStrategy,x,xt,dxt,y,params,dΩ)
+  ρ = params[:ρ]
+  da_NS_ALE_dxt(x,dxt,y,ρ,dΩ)
+end
+
+# HEREEE!!!
+
+
 
 function fluid_residual_Ω(strategy::MeshStrategy{:biharmonic},t,x,xt,y,params)
     w, u, v, p = x
