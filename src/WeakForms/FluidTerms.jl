@@ -21,23 +21,12 @@ l_NS((φ,q),f,dΩ) = ∫( φ⋅f )dΩ
 # Navier-Stokes ALE
 # =================
 # LHS terms
-function a_NS_ALE_ϕ(strategy::MeshStrategy{:laplacian},(u,v,p),(ϕ,φ,q),α,dΩ)
-  ∫( α * (∇(ϕ) ⊙ ∇(u)) )dΩ
-end
-function a_NS_ALE_ϕ(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),λ,μ,dΩ)
-  ∫( ε(ϕ) ⊙ (σₘ∘(λ,μ,ε(u))) )dΩ
-end
-function a_NS_ALE_ψϕ(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α₁,α₂,dΩ)
-  ∫( α₁ * ( - (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) ) + α₂ * ( (∇(ϕ) ⊙ ∇(w)) ) )dΩ
-end
-function a_NS_ALE_φ((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
+function a_NS_ALE((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
   ∫( φ ⋅ ( J∘∇(u) * ρ * vt ) +
      φ ⋅ ( J∘∇(u) * ρ * conv∘( (Finv∘∇(u))⋅(v-ut), ∇(v) ) ) +
      ∇(φ) ⊙ Pᵥ_Ωf(μ,u,v) +
-     (∇⋅φ) * Pₚ_Ωf(u,p) )dΩ
-end
-function a_NS_ALE_q((u,v,p),(ϕ,φ,q),dΩ)
-  ∫( q * (J∘∇(u) * (∇(v) ⊙ FinvT∘∇(u))) )dΩ
+     (∇⋅φ) * Pₚ_Ωf(u,p) +
+     q * (J∘∇(u) * (∇(v) ⊙ FinvT∘∇(u))) )dΩ
 end
 function a_NS_ALE_ΓD((v,p),(vt,pt),(φ,q),t,vD,n,μ,γ,h,dΓ)
   ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t))) +
@@ -46,31 +35,22 @@ function a_NS_ALE_ΓD((v,p),(vt,pt),(φ,q),t,vD,n,μ,γ,h,dΓ)
 end
 
 # LHS linearized terms
-function da_NS_ALE_φ_du((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
+function da_NS_ALE_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
   ∫( φ ⋅ ( dJ∘(∇(u),∇(du)) * ρ * vt ) +
      φ ⋅ ( ( dJ∘(∇(u),∇(du)) * ρ * conv∘( Finv∘∇(u)⋅(v-ut), ∇(v)) ) +
            ( J∘∇(u) * ρ * conv∘( dFinv∘(∇(u),∇(du))⋅(v-ut), ∇(v)) ) ) +
      ∇(φ) ⊙ dPᵥ_Ωf_du(μ,u,du,v) +
-     (∇⋅φ) * dPₚ_Ωf_du(u,du,p) )dΩ
+     (∇⋅φ) * dPₚ_Ωf_du(u,du,p) +
+     φ ⋅ ( J∘∇(u) * ρ * dconv( (Finv∘∇(u))⋅dv, ∇(dv), (Finv∘∇(u))⋅(v-ut) , ∇(v)) ) +
+     ∇(φ) ⊙ Pᵥ_Ωf(μ,u,dv) +
+     (∇⋅φ) * Pₚ_Ωf_dp(u,dp) +
+     q * ( (dJ∘(∇(u),∇(du))) * (∇(v) ⊙ (FinvT∘∇(u))) +
+           (J∘∇(u)) * (∇(v) ⊙ (dFinvT∘(∇(u),∇(du)))) ) +
+     q * ( (J∘∇(u)) * (∇(dv) ⊙ (FinvT∘∇(u))) ) )dΩ
 end
-function da_NS_ALE_φ_dv((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
-  ∫( φ ⋅ ( J∘∇(u) * ρ * dconv( (Finv∘∇(u))⋅dv, ∇(dv), (Finv∘∇(u))⋅(v-ut) , ∇(v)) ) +
-     ∇(φ) ⊙ Pᵥ_Ωf(μ,u,dv) )dΩ
-end
-function da_NS_ALE_φ_dp((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
-  ∫( (∇⋅φ) * Pₚ_Ωf_dp(u,dp) )dΩ
-end
-function da_NS_ALE_φ_dut((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
-  ∫( - φ ⋅ ( (J∘∇(u)) * ρ * conv∘(	(Finv∘∇(u))⋅dut, ∇(v)) ) )dΩ
-end
-function da_NS_ALE_φ_dvt((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
-  ∫( φ ⋅ ( (J∘∇(u)) * ρ * dvt ) )dΩ
-end
-function da_NS_ALE_q_du((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
-  ∫( q * ( (dJ∘(∇(u),∇(du))) * (∇(v) ⊙ (FinvT∘∇(u))) + (J∘∇(u)) * (∇(v) ⊙ (dFinvT∘(∇(u),∇(du)))) ) )dΩ
-end
-function da_NS_ALE_q_dv((u,v,p),(du,dv,dp),(ϕ,φ,q),dΩ)
-  ∫( q * ( (J∘∇(u)) * (∇(dv) ⊙ (FinvT∘∇(u))) ) )dΩ
+function da_NS_ALE_dxt((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
+  ∫( - φ ⋅ ( (J∘∇(u)) * ρ * conv∘(	(Finv∘∇(u))⋅dut, ∇(v)) ) +
+     φ ⋅ ( (J∘∇(u)) * ρ * dvt ) )dΩ
 end
 function da_NS_ALE_ΓfD_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ)
   dP_tensor(u,du,v,dv,p) = dPᵥ_Ωf_du(μ,u,du,v) + Pᵥ_Ωf_dv(μ,u,dv) + dPₚ_Ωf_du(u,du,p)
@@ -85,12 +65,24 @@ function da_NS_ALE_ΓD_dxt((dut,dvt,dpt),(ϕ,φ,q),μ,γ,h,dΓ)
 end
 
 # RHS terms
-function l_NS_ALE_ϕ(strategy::MeshStrategy,(ϕ,φ,q),f,t,dΩ)
+function l_NS_ALE((ϕ,φ,q),f,t,dΩ)
+  ∫( φ⋅f(t) )dΩ
+end
+
+# Monolithic mesh motion
+# ======================
+function a_mesh(strategy::MeshStrategy{:laplacian},(u,v,p),(ϕ,φ,q),α,dΩ)
+  ∫( α * (∇(ϕ) ⊙ ∇(u)) )dΩ
+end
+function a_mesh(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),λ,μ,dΩ)
+  ∫( ε(ϕ) ⊙ (σₘ∘(λ,μ,ε(u))) )dΩ
+end
+function a_mesh(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α₁,α₂,dΩ)
+  ∫( α₁ * ( - (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) ) + α₂ * ( (∇(ϕ) ⊙ ∇(w)) ) )dΩ
+end
+function l_mesh(strategy::MeshStrategy,(ϕ,φ,q),f,t,dΩ)
   ∫( ϕ⋅f(t) )dΩ
 end
-function l_NS_ALE_ψ(strategy::MeshStrategy{:biharmonic},(ψ,ϕ,φ,q),f,t,dΩ)
+function l_mesh(strategy::MeshStrategy{:biharmonic},(ψ,ϕ,φ,q),f,t,dΩ)
   ∫( ψ⋅f(t) )dΩ
-end
-function l_NS_ALE_φ((ϕ,φ,q),f,t,dΩ)
-  ∫( φ⋅f(t) )dΩ
 end
