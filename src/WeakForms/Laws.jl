@@ -33,10 +33,10 @@ conv(c,∇v) = (∇v') ⋅ c
 dconv(dc,∇dv,c,∇v) = conv(c,∇dv) + conv(dc,∇v)
 
 # Solid constitutive laws
-# Second Piola-Kirchhoff stress
+# Second Piola-Kirchhoff stress (Saint-Venant)
 Sₛᵥ_Ωs(λ,μ,u) = 2*μ*E∘∇(u) + λ*tr(E∘∇(u))*I∘∇(u)
 dSₛᵥ_Ωs_du(λ,μ,u,du) = 2*μ*dE∘(∇(u),∇(du)) + λ*tr(dE∘(∇(u),∇(du)))*I∘∇(u)
-# First Piola-Kirchhoff stress
+# First Piola-Kirchhoff stress (Saint-Venant)
 Pₛᵥ_Ωs(λ,μ,u) = F∘∇(u) ⋅ Sₛᵥ_Ωs(λ,μ,u)
 dPₛᵥ_Ωs_du(λ,μ,u,du) = dF∘∇(du) ⋅ Sₛᵥ_Ωs(λ,μ,u) + F∘∇(u) ⋅ dSₛᵥ_Ωs(λ,μ,u,du)
 # C(F) = (F')⋅F
