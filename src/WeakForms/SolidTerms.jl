@@ -1,6 +1,6 @@
-# Primal Finite Elasticity
+# Primal Finite Elasticity (Saint-Venant)
 # ========================
-function a_PFE((u,v),(ut,vt),(ϕ,φ),λ,μ,dΩ)
+function a_PFE((u,v),(ut,vt),(ϕ,φ),ρ,λ,μ,dΩ)
   ∫( ϕ⋅ut - ϕ⋅v +
      φ⋅(ρ*vt) + (∇(φ) ⊙ Pₛᵥ_Ωs(λ,μ,u)) )dΩ
 end
