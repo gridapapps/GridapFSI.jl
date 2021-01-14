@@ -1,5 +1,6 @@
 module FSIDrivers
 
+# Julia modules used in the drivers
 using Gridap
 using Gridap.Helpers
 using Gridap.Geometry
@@ -14,11 +15,14 @@ using LineSearches: BackTracking, HagerZhang
 using ForwardDiff
 using Test
 
+# Julia modules extended in the drivers
 import GridapODEs.TransientFETools: ∂t
 
+# Export functions to be used outside this module
 export Problem
 export execute
 
+# Problem
 struct Problem{Kind} end
 
 include("FSI_FESpaces.jl")
@@ -34,9 +38,9 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
         for (i, (xh, t)) in enumerate(sol)
             println("STEP: $i, TIME: $t")
             println("============================")
-            uh = restrict(xh[1],trian)
-            vh = restrict(xh[2],trian)
-						ph = restrict(xh[3],trian)
+            uh = xh[1]
+            vh = xh[2]
+						ph = xh[3]
             pvd[t] = createvtk(
                 trian,
                 filePath * "_$t.vtu",
@@ -71,33 +75,30 @@ function get_FSI_triangulations(models,coupling)
     if typeof(coupling) == WeakForms.Coupling{:weak}
       InterfaceTriangulation(models[:Ωf],models[:Ωs])
     else
-      BoundaryTriangulation(models[:Ωf],"interface")
+      BoundaryTriangulation(models[:Ωf],tags="interface")
     end
   end
   trian_Γi = Γi_triangulation(coupling)
   Dict(:Ω=>trian, :Ωs=>trian_s, :Ωf=>trian_f, :Γi=>trian_Γi)
 end
 
-function get_FSI_quadratures(triangulations,order)
+function get_FSI_measures(triangulations,order)
   degree = 2*order
   bdegree = 2*order
-  quad   = CellQuadrature(triangulations[:Ω],degree)
-  quad_s = CellQuadrature(triangulations[:Ωs],degree)
-  quad_f = CellQuadrature(triangulations[:Ωf],degree)
-  quad_Γi = CellQuadrature(triangulations[:Γi],bdegree)
-  Dict(:Ω=>quad, :Ωs=>quad_s, :Ωf=>quad_f, :Γi=>quad_Γi)
+  dΩ  = Measure(triangulations[:Ω],degree)
+  dΩs = Measure(triangulations[:Ωs],degree)
+  dΩf = Measure(triangulations[:Ωf],degree)
+  dΓi = Measure(triangulations[:Γi],bdegree)
+  Dict(:Ω=>dΩ, :Ωs=>dΩs, :Ωf=>dΩf, :Γi=>dΓi)
 end
 
-function get_Stokes_operator(FESpaces,strategy,trian,quad,μ,f)
-  res_ST(x,y) = WeakForms.stokes_residual(strategy,x,y,μ,f)
-  jac_ST(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ)
-  t_ST_Ωf = FETerm(res_ST, jac_ST, trian, quad)
-  X,Y = FESpaces
-  op_ST = FEOperator(X,Y,t_ST_Ωf)
+function get_Stokes_operator(X,Y,strategy,dΩ,μ,f)
+  res(x,y) = WeakForms.stokes_residual(strategy,x,y,μ,f,dΩ)
+  jac(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ,dΩ)
+  op = FEOperator(res,jac,X,Y)
 end
 
-function get_FSI_operator(FESpaces,coupling,strategy,Tₕ,quads,params)
-  X, Y = FESpaces
+function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
   m_params, f_params, s_params, Γi_params = params
 
   # Compute cell area (auxiliar quantity for mesh motion eq.)
@@ -139,18 +140,21 @@ function get_FSI_operator(FESpaces,coupling,strategy,Tₕ,quads,params)
   push!(Γi_params, :h=>hΓᵢ)
 
   # Define operator
-  res_FSI_Ωf(t,x,xt,y) = WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,f_params)
-  jac_FSI_Ωf(t,x,xt,dx,y) = WeakForms.fluid_jacobian_Ω(strategy,coupling,x,xt,dx,y,f_params)
-  jac_t_FSI_Ωf(t,x,xt,dxt,y) = WeakForms.fluid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,f_params)
-  res_FSI_Ωs(t,x,xt,y) = WeakForms.solid_residual_Ω(strategy,coupling,t,x,xt,y,s_params)
-  jac_FSI_Ωs(t,x,xt,dx,y) = WeakForms.solid_jacobian_Ω(strategy,coupling,x,xt,dx,y,s_params)
-  jac_t_FSI_Ωs(t,x,xt,dxt,y) = WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,s_params)
-  res_FSI_Γi(x,y) = WeakForms.fsi_residual_Γi(strategy,coupling,x,y,Γi_params)
-  jac_FSI_Γi(x,dx,y) = WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,Γi_params)
-  t_FSI_Ωf = FETerm(res_FSI_Ωf, jac_FSI_Ωf, jac_t_FSI_Ωf, Tₕ[:Ωf], quads[:Ωf])
-  t_FSI_Ωs = FETerm(res_FSI_Ωs, jac_FSI_Ωs, jac_t_FSI_Ωs, Tₕ[:Ωs], quads[:Ωs])
-  t_FSI_Γi = FETerm(res_FSI_Γi,jac_FSI_Γi,Tₕ[:Γi],quads[:Γi])
-  op_FSI = TransientFEOperator(X,Y,t_FSI_Ωf,t_FSI_Ωs,t_FSI_Γi)
+  function res(t,x,xt,y)
+    WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_Ω(strategy,coupling,x,xt,dx,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_residual_Γi(strategy,coupling,x,y,Γi_params,dTₕ[:Γi])
+  end
+  function jac(t,x,xt,dx,y)
+    WeakForms.fluid_jacobian_Ω(strategy,coupling,x,xt,dx,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,Γi_params,dTₕ[:Γi])
+  end
+  function jac_t(t,x,xt,dxt,y)
+    WeakForms.fluid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,s_params,dTₕ[:Ωs])
+  end
+  op = TransientFEOperator(res,jac,jac_t,X,Y)
 
 end
 

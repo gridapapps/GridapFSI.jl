@@ -30,7 +30,7 @@ Stokes residual:
 R([u,p],[v,q]=a([u,p],[v,q])-l([v,q]))
 """
 function stokes_residual(x,y,μ::Real,f,dΩ)
-  a_ST(x,y,μ,dΩ) - l_ST(y,f,dΩ)
+  a_ST(x,y,μ,dΩ) #- l_ST(y,f,dΩ)
 end
 function stokes_residual(strategy::MeshStrategy,(u,v,p),(ϕ,φ,q),μ::Real,f,dΩ)
   ∫(ϕ⋅u)dΩ + stokes_residual((v,p),(φ,q),μ,f,dΩ)
@@ -38,11 +38,11 @@ end
 function stokes_residual(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),μ::Real,f,dΩ)
   ∫(ϕ⋅u + ψ⋅w)dΩ + stokes_residual((v,p),(φ,q),μ,f,dΩ)
 end
-function stokes_jacobian(dx,y,μ::Real)
+function stokes_jacobian(dx,y,μ::Real,dΩ)
   a_ST(dx,y,μ,dΩ)
 end
 function stokes_jacobian(strategy::MeshStrategy,(du,dv,dp),(ϕ,φ,q),μ::Real,dΩ)
-  ∫(ϕ⋅du)dΩ + + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)
+  ∫(ϕ⋅du)dΩ + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)
 end
 function stokes_jacobian(strategy::MeshStrategy{:biharmonic},(dw,du,dv,dp),(ψ,ϕ,φ,q),μ::Real,dΩ)
   ∫(ϕ⋅du + ψ⋅dw)dΩ + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)

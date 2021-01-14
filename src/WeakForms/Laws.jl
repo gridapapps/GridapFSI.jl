@@ -15,15 +15,15 @@ dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
 
 # Fluid constitutive laws
 # Cauchy stress
-σᵥ_Ωf(μ,ε) = 2.0*μ*ε
-σᵥ_Ωf(μ,∇v,Finv) = μ*(∇v⋅Finv + (Finv')⋅(∇v'))
+σᵥ_Ωf(μ,u) = 2.0*μ*ε(u)
+σᵥ_Ωf(μ) = (∇v,Finv) -> μ*(∇v⋅Finv + (Finv')⋅(∇v'))
 # First Piola-Kirchhoff stress
-Pᵥ_Ωf(μ,u,v) = J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * FinvT∘∇(u)
+Pᵥ_Ωf(μ,u,v) = J∘∇(u) * (σᵥ_Ωf(μ)∘∇(v),Finv∘∇(u))' * FinvT∘∇(u)
 Pₚ_Ωf(u,p) = - J∘∇(u) * p * tr(FinvT∘∇(u))
 # First Piola-Kirchhoff stress Jacobian
-dPᵥ_Ωf_du(μ,u,du,v) = dJ∘(∇(u),∇(du)) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * FinvT∘∇(u) +
-                      J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),dFinv∘(∇(u),∇(du))))' * FinvT∘∇(u) +
-                      J∘∇(u) * (σᵥ_Ωf∘(μ,∇(v),Finv∘∇(u)))' * dFinvT∘(∇(u),∇(du))
+dPᵥ_Ωf_du(μ,u,du,v) = dJ∘(∇(u),∇(du)) * (σᵥ_Ωf(μ)∘(∇(v),Finv∘∇(u)))' * FinvT∘∇(u) +
+                      J∘∇(u) * (σᵥ_Ωf(μ)∘(∇(v),dFinv∘(∇(u),∇(du))))' * FinvT∘∇(u) +
+                      J∘∇(u) * (σᵥ_Ωf(μ)∘(∇(v),Finv∘∇(u)))' * dFinvT∘(∇(u),∇(du))
 dPₚ_Ωf_du(u,du,p) = - p * ( dJ∘(∇(u),∇(du)) * tr(FinvT∘∇(u)) +
                            J∘∇(u) * tr(dFinvT∘(∇(u),∇(du))) )
 dPᵥ_Ωf_dv(μ,u,dv) = Pᵥ_Ωf(μ,u,dv)
@@ -52,6 +52,6 @@ dPₛᵥ_Ωs_du(λ,μ,u,du) = dF∘∇(du) ⋅ Sₛᵥ_Ωs(λ,μ,u) + F∘∇(u)
 
 # Mesh constitutive laws
 αₘ(J) = 1.0e-5 / J
-σₘ(λ,μ,ε) = λ*tr(ε)*I(ε) + 2.0*μ*ε
+σₘ(λ,μ) = ε -> λ*tr(ε)*I(ε) + 2.0*μ*ε
 dαₘ(J,dJ) = - 1.0e-5 * 1.0 / (J*J) * dJ
 dσₘ(λ,dλ,μ,dμ,ε,dε) = σ_m(λ,μ,dε) + σ_m(dλ,dμ,ε)
