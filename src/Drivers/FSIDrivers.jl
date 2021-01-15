@@ -141,18 +141,18 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
 
   # Define operator
   function res(t,x,xt,y)
-    WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_jacobian_Ω(strategy,coupling,x,xt,dx,y,s_params,dTₕ[:Ωs]) +
-    WeakForms.fsi_residual_Γi(strategy,coupling,x,y,Γi_params,dTₕ[:Γi])
+    WeakForms.fluid_residual_Ω(strategy,t,x,xt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_residual_Ω(strategy,t,x,xt,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_residual_Γi(strategy,x,y,Γi_params,dTₕ[:Γi])
   end
   function jac(t,x,xt,dx,y)
-    WeakForms.fluid_jacobian_Ω(strategy,coupling,x,xt,dx,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,s_params,dTₕ[:Ωs]) +
-    WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,Γi_params,dTₕ[:Γi])
+    WeakForms.fluid_jacobian_Ω(strategy,x,xt,dx,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_Ω(strategy,x,xt,dx,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_jacobian_Γi(strategy,x,dx,y,Γi_params,dTₕ[:Γi])
   end
   function jac_t(t,x,xt,dxt,y)
-    WeakForms.fluid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_jacobian_t_Ω(strategy,coupling,x,xt,dxt,y,s_params,dTₕ[:Ωs])
+    WeakForms.fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_t_Ω(strategy,x,xt,dxt,y,s_params,dTₕ[:Ωs])
   end
   op = TransientFEOperator(res,jac,jac_t,X,Y)
 

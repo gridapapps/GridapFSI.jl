@@ -103,32 +103,32 @@ end
 # ===========
 # Residual
 function solid_residual_Ω(st::MeshStrategy,t,x,xt,y,params,dΩ)
-  _x = x[1:2]
-  _xt = xt[1:2]
-  _y = y[1:2]
+  _x = (x[1],x[2])
+  _xt = (xt[1],xt[2])
+  _y = (y[1],y[2])
   λ,μ = lame_parameters(params[:E],params[:ν])
   ρ = params[:ρ]; fᵤ = params[:fu]; fᵥ = params[:fv]
   a_PFE(_x,_xt,_y,ρ,λ,μ,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
 end
 function solid_residual_Ω(st::MeshStrategy{:biharmonic},t,x,xt,y,params,dΩ)
-  _x = x[1:2]
-  _xt = xt[1:2]
-  _y = y[1:2]
+  _x = x[2:3]
+  _xt = xt[2:3]
+  _y = y[2:3]
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]; fₘ = params[:fu]; fᵤ = params[:fu]; fᵥ = params[:fv]
   a_mesh(st,x,y,α,dΩ) + a_PFE(_x,_xt,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
 end
 # Spatial Jacobian
-function solid_jacobian_Ω(st::MeshStrategy,t,x,xt,dx,y,params,dΩ)
-  _x = x[1:2]
-  _xt = xt[1:2]
-  _dx = dx[1:2]
-  _y = y[1:2]
+function solid_jacobian_Ω(st::MeshStrategy,x,xt,dx,y,params,dΩ)
+  _x = (x[1],x[2])
+  _xt = (xt[1],xt[2])
+  _dx = (dx[1],dx[2])
+  _y = (y[1],y[2])
   λ,μ = lame_parameters(params[:E],params[:ν])
   ρ = params[:ρ]
   da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
 end
-function solid_jacobian_Ω(st::MeshStrategy{:biharmonic},t,x,xt,dx,y,params,dΩ)
+function solid_jacobian_Ω(st::MeshStrategy{:biharmonic},x,xt,dx,y,params,dΩ)
   _x = x[2:3]
   _xt = xt[2:3]
   _dx = dx[2:3]
@@ -138,13 +138,13 @@ function solid_jacobian_Ω(st::MeshStrategy{:biharmonic},t,x,xt,dx,y,params,dΩ)
   a_mesh(st,dx,y,α,dΩ) + da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
 end
 # Temporal Jacobian
-function solid_jacobian_t_Ω(st::MeshStrategy,t,x,xt,dxt,y,params,dΩ)
-  _dxt = dxt[1:2]
-  _y = y[1:2]
+function solid_jacobian_t_Ω(st::MeshStrategy,x,xt,dxt,y,params,dΩ)
+  _dxt = (dxt[1],dxt[2])
+  _y = (y[1],y[2])
   ρ = params[:ρ]
   da_PFE_dxt(_dxt,_y,ρ,dΩ)
 end
-function solid_jacobian_t_Ω(st::MeshStrategy{:biharmonic},t,x,xt,dxt,y,params,dΩ)
+function solid_jacobian_t_Ω(st::MeshStrategy{:biharmonic},x,xt,dxt,y,params,dΩ)
   _dxt = dxt[2:3]
   _y = y[2:3]
   ρ = params[:ρ]

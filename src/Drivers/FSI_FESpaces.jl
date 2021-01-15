@@ -13,9 +13,9 @@ function get_FE_spaces(
   # Test FE Spaces
   Vu_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
   Vv_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
-  Vu_ST = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ω], reffeₚ, constraint=constraint, conformity=:C0)
+  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
@@ -49,10 +49,10 @@ function get_FE_spaces(
   Vw_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
   Vu_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
   Vv_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
-  Vw_ST = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vu_ST = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ω], reffeₚ, constraint=constraint, conformity=:C0)
+  Vw_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])

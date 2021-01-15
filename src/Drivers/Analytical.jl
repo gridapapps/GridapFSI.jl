@@ -229,7 +229,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   :filePath=>filePath,
   :is_vtk=>is_vtk
   )
-  output = computeOutputs(xht,Tₕ,quads,strategy,out_params)
+  output = computeOutputs(xht,Tₕ,dTₕ,strategy,out_params)
 
 end
 
@@ -304,7 +304,7 @@ function get_FE_spaces(problem::Problem{:analytical},strategy::WeakForms.MeshStr
   )
 end
 
-function computeOutputs(xht,Tₕ,quads,strategy,params)
+function computeOutputs(xht,Tₕ,dTₕ,strategy,params)
 
   # Unpack parameters
   u = params[:u]
@@ -325,18 +325,18 @@ function computeOutputs(xht,Tₕ,quads,strategy,params)
       println("============================")
 
       # Compute errors
-      eu = u(t) - restrict(xh[1],Tₕ[:Ω])
-      ev = v(t) - restrict(xh[2],Tₕ[:Ω])
-      ep = p(t) - restrict(xh[3],Tₕ[:Ω])
-      eul2 = sqrt(sum( integrate(l2(eu),Tₕ[:Ω],quads[:Ω] )))
-      evl2 = sqrt(sum( integrate(l2(ev),Tₕ[:Ω],quads[:Ω] )))
-      epl2 = sqrt(sum( integrate(l2(ep),Tₕ[:Ω],quads[:Ω] )))
+      eu = u(t) - xh[1]
+      ev = v(t) - xh[2]
+      ep = p(t) - xh[3]
+      eul2 = sqrt(∑( ∫(l2(eu))dTₕ[:Ω] ))
+      evl2 = sqrt(∑( ∫(l2(ev))dTₕ[:Ω] ))
+      epl2 = sqrt(∑( ∫(l2(ep))dTₕ[:Ω] ))
 
       # Write to PVD
       if(is_vtk)
-        uh = restrict(xh[1],Tₕ[:Ω])
-        vh = restrict(xh[2],Tₕ[:Ω])
-        ph = restrict(xh[3],Tₕ[:Ω])
+        uh = xh[1]
+        vh = xh[2]
+        ph = xh[3]
         pvd[t] = createvtk(
         Tₕ[:Ω],
         filePath * "_$t.vtu",
