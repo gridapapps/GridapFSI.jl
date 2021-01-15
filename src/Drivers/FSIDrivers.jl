@@ -5,6 +5,7 @@ using Gridap
 using Gridap.Helpers
 using Gridap.Geometry
 using Gridap.Arrays
+using Gridap.CellData
 using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
@@ -104,14 +105,17 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
   # Compute cell area (auxiliar quantity for mesh motion eq.)
   α_m = m_params[:α]
   if( m_params[:w_strategy] == "volume")
-    volf = cell_measure(Tₕ[:Ωf],Tₕ[:Ω])
-    vols = cell_measure(Tₕ[:Ωs],Tₕ[:Ω])
-    α_Ωf = α_m * reindex(volf,Tₕ[:Ωf])
-    α_Ωs = α_m * reindex(vols,Tₕ[:Ωs])
+    # volf = get_cell_measure(Tₕ[:Ωf])
+    # vols = get_cell_measure(Tₕ[:Ωs])
+    # α_Ωf = α_m * reindex(volf,Tₕ[:Ωf])
+    # α_Ωs = α_m * reindex(vols,Tₕ[:Ωs])
+    α_Ωf = α_m * get_cell_measure(Tₕ[:Ωf])
+    α_Ωs = α_m * get_cell_measure(Tₕ[:Ωs])
+    # α_Ωs = α_Ωf
     if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-      α_Γi = α_m * reindex(volf,get_left_boundary(Tₕ[:Γi]))
+       α_Γi = 0.0 # to fix
     else
-      α_Γi = α_m * reindex(volf,Tₕ[:Γi])
+      α_Γi = α_m * get_cell_measure(Tₕ[:Γi])
     end
   else
     α_Ωf = α_m; α_Ωs = α_m; α_Γi = α_m
@@ -119,8 +123,11 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
 
   # Compute interface element size (if weak coupling)
   if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-    trian_boundary_Γi = get_left_boundary(Tₕ[:Γi])
-    hΓᵢ = reindex(cell_measure(trian_boundary_Γi,Tₕ[:Ω]),trian_boundary_Γi)
+    dim = num_cell_dims(Tₕ[:Γi])
+    h_Γfs = get_array(∫(1)dTₕ[:Γi])
+    hΓᵢ = CellField( lazy_map(h->(h.^dim),h_Γfs), Tₕ[:Γi])
+    # trian_boundary_Γi = get_left_boundary(Tₕ[:Γi])
+    # hΓᵢ = reindex(cell_measure(trian_boundary_Γi,Tₕ[:Ω]),trian_boundary_Γi)
   else
     hΓᵢ = 0.0
   end
@@ -141,18 +148,18 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
 
   # Define operator
   function res(t,x,xt,y)
-    WeakForms.fluid_residual_Ω(strategy,t,x,xt,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_residual_Ω(strategy,t,x,xt,y,s_params,dTₕ[:Ωs]) +
-    WeakForms.fsi_residual_Γi(strategy,x,y,Γi_params,dTₕ[:Γi])
+    WeakForms.fluid_residual_Ω(strategy,coupling,t,x,xt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_residual_Ω(strategy,coupling,t,x,xt,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_residual_Γi(strategy,coupling,x,y,Γi_params,dTₕ[:Γi])
   end
   function jac(t,x,xt,dx,y)
-    WeakForms.fluid_jacobian_Ω(strategy,x,xt,dx,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_jacobian_Ω(strategy,x,xt,dx,y,s_params,dTₕ[:Ωs]) +
-    WeakForms.fsi_jacobian_Γi(strategy,x,dx,y,Γi_params,dTₕ[:Γi])
+    WeakForms.fluid_jacobian_Ω(strategy,coupling,t,x,xt,dx,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_Ω(strategy,coupling,t,x,xt,dx,y,s_params,dTₕ[:Ωs]) +
+    WeakForms.fsi_jacobian_Γi(strategy,coupling,x,dx,y,Γi_params,dTₕ[:Γi])
   end
   function jac_t(t,x,xt,dxt,y)
-    WeakForms.fluid_jacobian_t_Ω(strategy,x,xt,dxt,y,f_params,dTₕ[:Ωf]) +
-    WeakForms.solid_jacobian_t_Ω(strategy,x,xt,dxt,y,s_params,dTₕ[:Ωs])
+    WeakForms.fluid_jacobian_t_Ω(strategy,coupling,t,x,xt,dxt,y,f_params,dTₕ[:Ωf]) +
+    WeakForms.solid_jacobian_t_Ω(strategy,coupling,t,x,xt,dxt,y,s_params,dTₕ[:Ωs])
   end
   op = TransientFEOperator(res,jac,jac_t,X,Y)
 

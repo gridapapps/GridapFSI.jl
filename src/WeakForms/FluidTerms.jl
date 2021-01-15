@@ -71,27 +71,27 @@ end
 
 # Monolithic mesh motion
 # ======================
-function a_mesh(strategy::MeshStrategy{:laplacian},(u,v,p),(ϕ,φ,q),α,dΩ)
+function a_mesh(strategy::MeshStrategy{:laplacian},(u,v),(ϕ,φ),α,dΩ)
   ∫( α * (∇(ϕ) ⊙ ∇(u)) )dΩ
 end
-function a_mesh(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),λ,μ,dΩ)
+function a_mesh(strategy::MeshStrategy{:linearElasticity},(u,v),(ϕ,φ),λ,μ,dΩ)
   ∫( ε(ϕ) ⊙ (σₘ(λ,μ)∘ε(u)) )dΩ
 end
-function a_mesh(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),α₁,α₂,dΩ)
+function a_mesh(strategy::MeshStrategy{:biharmonic},(w,u,v),(ψ,ϕ,φ),α₁,α₂,dΩ)
   ∫( α₁ * ( - (ψ ⋅ w) + (∇(ψ) ⊙ ∇(u)) ) + α₂ * ( (∇(ϕ) ⊙ ∇(w)) ) )dΩ
 end
-function a_mesh_Γi(strategy::MeshStrategy{:laplacian},(u,v,p),(ϕ,φ,q),n,α,dΓ)
+function a_mesh_Γi(strategy::MeshStrategy{:laplacian},(u,v),(ϕ,φ),n,α,dΓ)
   ∫( - α * (ϕ ⋅ (n.⁺⋅∇(u))) )dΓ
 end
-function a_mesh_Γi(strategy::MeshStrategy{:linearElasticity},(u,v,p),(ϕ,φ,q),n,λ,μ,dΓ)
+function a_mesh_Γi(strategy::MeshStrategy{:linearElasticity},(u,v),(ϕ,φ),n,λ,μ,dΓ)
   ∫( - (ϕ ⋅  (n.⁺⋅(σₘ(λ,μ)∘ε(u))) ) )dΓ
 end
-function a_mesh_Γi(strategy::MeshStrategy{:biharmonic},(w,u,v,p),(ψ,ϕ,φ,q),n,α₁,α₂,dΓ)
+function a_mesh_Γi(strategy::MeshStrategy{:biharmonic},(w,u,v),(ψ,ϕ,φ),n,α₁,α₂,dΓ)
   ∫( - α₁ * (ψ ⋅  (n.⁺⋅∇(u))) - α₂ * (ϕ ⋅  (n.⁺⋅∇(w))) )dΓ
 end
-function l_mesh(strategy::MeshStrategy,(ϕ,φ,q),f,t,dΩ)
+function l_mesh(strategy::MeshStrategy,(ϕ,φ),f,t,dΩ)
   ∫( ϕ⋅f(t) )dΩ
 end
-function l_mesh(strategy::MeshStrategy{:biharmonic},(ψ,ϕ,φ,q),f,t,dΩ)
+function l_mesh(strategy::MeshStrategy{:biharmonic},(ψ,ϕ,φ),f,t,dΩ)
   ∫( ψ⋅f(t) )dΩ
 end

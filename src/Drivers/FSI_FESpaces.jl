@@ -124,12 +124,11 @@ function get_FE_spaces(
   reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 
   # Test FE Spaces
-  Vw_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vu_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vv_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
-  Vw_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vu_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vv_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
+  Vw_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vw_f_tags])
+  Vu_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_f_tags])
+  Vv_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_f_tags])
+  Vu_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_s_tags])
+  Vv_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_s_tags])
   Vw_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
   Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
   Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])

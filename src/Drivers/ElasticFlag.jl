@@ -82,8 +82,8 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
   println("Defining discrete model")
   modelName = _get_kwarg(:model,kwargs,"../models/elasticFlag.json")
   model = DiscreteModelFromFile(modelName)
-  model_solid = DiscreteModel(model,"solid")
-  model_fluid = DiscreteModel(model,"fluid")
+  model_solid = DiscreteModel(model,tags="solid")
+  model_fluid = DiscreteModel(model,tags="fluid")
   models = Dict(:Ω => model, :Ωf => model_fluid, :Ωs => model_solid)
 
   # Triangulations
@@ -93,7 +93,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
   # Quadratures
   println("Defining quadratures")
   order = _get_kwarg(:order,kwargs,2)
-  quads = get_FSI_quadratures(Tₕ,order)
+  dTₕ = get_FSI_measures(Tₕ,order)
 
   # Test FE Spaces
   println("Defining FE spaces")
@@ -101,7 +101,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
-  op_ST = get_Stokes_operator([X_ST,Y_ST],strategy,Tₕ[:Ωf],quads[:Ωf],μ_f,f(0.0))
+  op_ST = get_Stokes_operator(X_ST,Y_ST,strategy,dTₕ[:Ωf],μ_f,f(0.0))
 
   # Setup equation parameters
   mesh_params = Dict{Symbol,Any}(
@@ -132,7 +132,7 @@ function execute(problem::Problem{:elasticFlag}; kwargs...)
 
   # FSI problem
   println("Defining FSI operator")
-  op_FSI = get_FSI_operator([X_FSI,Y_FSI],coupling,strategy,Tₕ,quads,params)
+  op_FSI = get_FSI_operator(X_FSI,Y_FSI,coupling,strategy,Tₕ,dTₕ,params)
 
   # Setup output files
   folderName = "fsi-results"
@@ -178,7 +178,7 @@ out_params = Dict{Symbol,Any}(
   :filePath=>filePath,
   :is_vtk=>is_vtk,
   )
-output = computeOutputs(xh0,xht,coupling,strategy,models,Tₕ,quads,out_params)
+output = computeOutputs(xh0,xht,coupling,strategy,models,Tₕ,dTₕ,out_params)
 
 end
 
@@ -248,12 +248,12 @@ function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms
   end
 
   ## Surface triangulation
-  trian_Γc = BoundaryTriangulation(models[:Ω], "cylinder")
-  quad_Γc = CellQuadrature(trian_Γc, bdegree)
-  n_Γc = get_normal_vector(trian_Γc)
+  Γc = BoundaryTriangulation(models[:Ω], tags="cylinder")
+  dΓc = Measure(Γc, bdegree)
+  n_Γc = get_normal_vector(Γc)
 
   # Aux function
-  traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pf_dev(μ,u,v)  + WeakForms.Pf_vol(u,p) * n
+  traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pᵥ_Ωf(μ,u,v)  + WeakForms.Pₚ_Ωf(u,p) * n
   function traction_closure(coupling,n,u,v,p)
     if typeof(coupling) == WeakForms.Coupling{:weak}
       traction_boundary(n,u,v,p).⁺
@@ -285,30 +285,13 @@ function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms
     uh = xh[uvpindex[1]]
     vh = xh[uvpindex[2]]
     ph = xh[uvpindex[3]]
-    uh_Γc = restrict(uh, trian_Γc)
-    vh_Γc = restrict(vh, trian_Γc)
-    ph_Γc = restrict(ph, trian_Γc)
-    uhn_Γc = restrict(uhn, trian_Γc)
-    vhn_Γc = restrict(vhn, trian_Γc)
-    phn_Γc = restrict(phn, trian_Γc)
-    uhθ_Γc = θ*uh_Γc + (1.0-θ)*uhn_Γc
-    vhθ_Γc = θ*vh_Γc + (1.0-θ)*vhn_Γc
-    phθ_Γc = θ*ph_Γc + (1.0-θ)*phn_Γc
-    uh_Γi = restrict(uh, Tₕ[:Γi])
-    vh_Γi = restrict(vh, Tₕ[:Γi])
-    ph_Γi = restrict(ph, Tₕ[:Γi])
-    uhn_Γi = restrict(uhn, Tₕ[:Γi])
-    vhn_Γi = restrict(vhn, Tₕ[:Γi])
-    phn_Γi = restrict(phn, Tₕ[:Γi])
-    uhθ_Γi = θ*uh_Γi + (1.0-θ)*uhn_Γi
-    vhθ_Γi = θ*vh_Γi + (1.0-θ)*vhn_Γi
-    phθ_Γi = θ*ph_Γi + (1.0-θ)*phn_Γi
+    xθ(xₙ₊₁,xₙ) = θ*xₙ₊₁ + (1-θ)*xₙ
 
     # Integrate on the cylinder
-    FDc, FLc = sum(integrate(traction_boundary(n_Γc,uhθ_Γc,vhθ_Γc,phθ_Γc), trian_Γc, quad_Γc))
+    FDc, FLc = ∑(∫(traction_boundary(n_Γc,xθ(uh,uhn),xθ(vh,vhn),xθ(ph,phn)) )dΓc )
 
     # Integrate on the interface
-    FDi, FLi = sum(integrate(traction_interface(n_Γi,uhθ_Γi,vhθ_Γi,phθ_Γi), Tₕ[:Γi], quads[:Γi]))
+    FDi, FLi = ∑(∫(traction_boundary(n_Γc,xθ(uh,uhn),xθ(vh,vhn),xθ(ph,phn)) )dΓc )
 
     FD = FDc + FDi
     FL = FLc + FLi
