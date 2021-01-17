@@ -113,9 +113,9 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
     α_Ωs = α_m * get_cell_measure(Tₕ[:Ωs])
     # α_Ωs = α_Ωf
     if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-       α_Γi = 0.0 # to fix
+       α_Γi = lazy_map(Reindex(α_Ωf),get_cell_to_bgcell(Tₕ[:Γi].⁺))
     else
-      α_Γi = α_m * get_cell_measure(Tₕ[:Γi])
+      α_Γi = lazy_map(Reindex(α_Ωf),get_cell_to_bgcell(Tₕ[:Γi]))
     end
   else
     α_Ωf = α_m; α_Ωs = α_m; α_Γi = α_m
@@ -125,7 +125,7 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
   if ( typeof(coupling) == WeakForms.Coupling{:weak} )
     dim = num_cell_dims(Tₕ[:Γi])
     h_Γfs = get_array(∫(1)dTₕ[:Γi])
-    hΓᵢ = CellField( lazy_map(h->(h.^dim),h_Γfs), Tₕ[:Γi])
+    hΓᵢ = CellField( lazy_map(h->(h.^(-dim)),h_Γfs), Tₕ[:Γi])
     # trian_boundary_Γi = get_left_boundary(Tₕ[:Γi])
     # hΓᵢ = reindex(cell_measure(trian_boundary_Γi,Tₕ[:Ω]),trian_boundary_Γi)
   else

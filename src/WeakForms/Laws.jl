@@ -19,7 +19,10 @@ dE(∇u,∇du) = 0.5 * ((dF(∇du)')⋅F(∇u) + (F(∇u)')⋅dF(∇du))
 σᵥ_Ωf(μ) = (∇v,Finv) -> μ*(∇v⋅Finv + (Finv')⋅(∇v'))
 # First Piola-Kirchhoff stress
 Pᵥ_Ωf(μ,u,v) = (J∘∇(u)) * (σᵥ_Ωf(μ)∘(∇(v),Finv∘∇(u)))' ⋅ (FinvT∘∇(u))
-Pₚ_Ωf(u,p) = - (J∘∇(u)) * p * tr(FinvT∘∇(u))
+function Pₚ_Ωf(u,p)
+  typeof(- (J∘∇(u)) * p * tr((FinvT∘∇(u))))
+  - (J∘∇(u)) * p * tr((FinvT∘∇(u)))
+end
 # First Piola-Kirchhoff stress Jacobian
 dPᵥ_Ωf_du(μ,u,du,v) = (dJ∘(∇(u),∇(du))) * (σᵥ_Ωf(μ)∘(∇(v),(Finv∘∇(u))))' ⋅ (FinvT∘∇(u)) +
                       (J∘∇(u)) * (σᵥ_Ωf(μ)∘(∇(v),(dFinv∘(∇(u),∇(du)))))' ⋅ (FinvT∘∇(u)) +

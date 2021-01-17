@@ -196,6 +196,8 @@ get_fluid_vars_Γi(::MeshStrategy{:biharmonic},::Coupling{:weak},x) = (x[1].⁺,
 get_solid_vars_Ω(::MeshStrategy,::Coupling{:strong},x) = x
 get_solid_vars_Ω(::MeshStrategy,::Coupling{:weak},x) = (x[4],x[5])
 get_solid_vars_Ω(::MeshStrategy{:biharmonic},::Coupling{:weak},x) = (x[1],x[5],x[6])
+get_interface_vars_Γi(::MeshStrategy,::Coupling{:weak},x) = x
+get_interface_vars_Γi(::MeshStrategy{:biharmonic},::Coupling{:weak},x) = (x[2],x[3],x[4],x[5],x[6])
 # Fluid
 function fluid_residual_Ω(st::MeshStrategy,c::Coupling,t,x,xt,y,params,dΩ)
   xf = get_fluid_vars_Ω(st,c,x)
@@ -242,7 +244,6 @@ end
 function fsi_residual_Γi(st::MeshStrategy,c::Coupling,x,y,params,dΓ)
   x_Γf = get_fluid_vars_Γi(st,c,x)
   y_Γf = get_fluid_vars_Γi(st,c,y)
-  #α⁺=params[:α].⁺; params[:α] = α⁺
   fsi_residual_Γi(st,x_Γf,y_Γf,params,dΓ)
 end
 function fsi_jacobian_Γi(st::MeshStrategy,c::Coupling,x,dx,y,params,dΓ)
@@ -254,16 +255,20 @@ end
 function fsi_residual_Γi(st::MeshStrategy,c::Coupling{:weak},x,y,params,dΓ)
   x_Γf = get_fluid_vars_Γi(st,c,x)
   y_Γf = get_fluid_vars_Γi(st,c,y)
-  #α⁺=params[:α].⁺; params[:α] = α⁺
+  x_Γi = get_interface_vars_Γi(st,c,x)
+  y_Γi = get_interface_vars_Γi(st,c,y)
   fsi_residual_Γi(st,x_Γf,y_Γf,params,dΓ) +
-  a_FSI_weak_Γi(x,y,params[:n],params[:μ],params[:γ],params[:h],params[:dt],dΓ)
+  a_FSI_weak_Γi(x_Γi,y_Γi,params[:n],params[:μ],params[:γ],params[:h],params[:dt],dΓ)
 end
 function fsi_jacobian_Γi(st::MeshStrategy,c::Coupling{:weak},x,dx,y,params,dΓ)
   x_Γf = get_fluid_vars_Γi(st,c,x)
   dx_Γf = get_fluid_vars_Γi(st,c,dx)
   y_Γf = get_fluid_vars_Γi(st,c,y)
+  x_Γi = get_interface_vars_Γi(st,c,x)
+  y_Γi = get_interface_vars_Γi(st,c,y)
+  dx_Γi = get_interface_vars_Γi(st,c,dx)
   fsi_jacobian_Γi(st,x_Γf,dx_Γf,y_Γf,params,dΓ) +
-  da_FSI_weak_Γi_dx(x,dx,y,params[:n],params[:μ],params[:γ],params[:h],params[:dt],dΓ)
+  da_FSI_weak_Γi_dx(x_Γi,dx_Γi,y_Γi,params[:n],params[:μ],params[:γ],params[:h],params[:dt],dΓ)
 end
 # Fuild boundary
 function fluid_residual_Γ(st::MeshStrategy,t,x,xt,y,params,dΓ)
