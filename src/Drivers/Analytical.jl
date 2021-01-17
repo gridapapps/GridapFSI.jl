@@ -101,7 +101,7 @@ function execute(problem::Problem{:analytical};kwargs...)
     d < 1.0e-8
   end
   oldcell_to_coods = get_cell_coordinates(trian)
-  oldcell_to_is_in = collect1d(apply(is_in,oldcell_to_coods))
+  oldcell_to_is_in = collect1d(lazy_map(is_in,oldcell_to_coods))
   incell_to_cell = findall(oldcell_to_is_in)
   outcell_to_cell = findall(collect(Bool, .! oldcell_to_is_in))
   model_solid = DiscreteModel(model,incell_to_cell)
@@ -132,8 +132,7 @@ function execute(problem::Problem{:analytical};kwargs...)
   # Quadratures
   println("Defining quadratures")
   order = _get_kwarg(:order,kwargs,2)
-  order = _get_kwarg(:order,kwargs,2)
-  quads = get_FSI_quadratures(Tₕ,order)
+  dTₕ = get_FSI_measures(Tₕ,order)
 
   # Test FE Spaces
   println("Defining FE spaces")
@@ -141,7 +140,7 @@ function execute(problem::Problem{:analytical};kwargs...)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
-  op_ST = get_Stokes_operator([X_ST,Y_ST],strategy,Tₕ[:Ωf],quads[:Ωf],μ_f,fv_ST_Ωf(0.0))
+  op_ST = get_Stokes_operator(X_ST,Y_ST,strategy,dTₕ[:Ωf],μ_f,fv_ST_Ωf(0.0))
 
   # Setup equation parameters
   mesh_params = Dict{Symbol,Any}(
@@ -172,7 +171,7 @@ function execute(problem::Problem{:analytical};kwargs...)
 
   # FSI problem
   println("Defining FSI operator")
-  op_FSI = get_FSI_operator([X_FSI,Y_FSI],coupling,strategy,Tₕ,quads,params)
+  op_FSI = get_FSI_operator(X_FSI,Y_FSI,coupling,strategy,Tₕ,dTₕ,params)
 
   # Setup output files
   folderName = "fsi-results"
@@ -184,53 +183,53 @@ function execute(problem::Problem{:analytical};kwargs...)
 
   # Solve Stokes problem
   @timeit "ST problem" begin
-  println("Defining Stokes solver")
-  xh = solve(op_ST)
-  if(is_vtk)
-    writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
+    println("Defining Stokes solver")
+    xh = solve(op_ST)
+    if(is_vtk)
+      writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
+    end
   end
-end
 
-# Compute Stokes solution L2-norm
-l2(w) = w⋅w
-eu_ST = u(0.0) - restrict(xh[1],Tₕ[:Ωf])
-ev_ST = v(0.0) - restrict(xh[2],Tₕ[:Ωf])
-ep_ST = p(0.0) - restrict(xh[3],Tₕ[:Ωf])
-eul2_ST = sqrt(sum( integrate(l2(eu_ST),Tₕ[:Ωf],quads[:Ωf]) ))
-evl2_ST = sqrt(sum( integrate(l2(ev_ST),Tₕ[:Ωf],quads[:Ωf]) ))
-epl2_ST = sqrt(sum( integrate(l2(ep_ST),Tₕ[:Ωf],quads[:Ωf]) ))
-println("Stokes L2-norm u: ", eul2_ST)
-println("Stokes L2-norm v: ", evl2_ST)
-println("Stokes L2-norm p: ", epl2_ST)
-@test eul2_ST < 1.0e-10
-@test evl2_ST < 1.0e-10
-@test epl2_ST < 1.0e-10
+  # Compute Stokes solution L2-norm
+  l2(w) = w⋅w
+  eu_ST = u(0.0) - xh[1]
+  ev_ST = v(0.0) - xh[2]
+  ep_ST = p(0.0) - xh[3]
+  eul2_ST = sqrt(∑( ∫(l2(eu_ST))dTₕ[:Ωf] ))
+  evl2_ST = sqrt(∑( ∫(l2(ev_ST))dTₕ[:Ωf] ))
+  epl2_ST = sqrt(∑( ∫(l2(ep_ST))dTₕ[:Ωf] ))
+  println("Stokes L2-norm u: ", eul2_ST)
+  println("Stokes L2-norm v: ", evl2_ST)
+  println("Stokes L2-norm p: ", epl2_ST)
+  @test eul2_ST < 1.0e-10
+  @test evl2_ST < 1.0e-10
+  @test epl2_ST < 1.0e-10
 
-# Solve FSI problem
-@timeit "FSI problem" begin
-println("Defining FSI solver")
-xh0 = interpolate_everywhere([u(0.0),v(0.0),p(0.0)],X_FSI(0.0))
-nls = NLSolver(
-show_trace = true,
-method = :newton,
-linesearch = BackTracking(),
-ftol = 1.0e-10,
-iterations = 50
-)
-odes =  ThetaMethod(nls, dt, 0.5)
-solver = TransientFESolver(odes)
-xht = solve(solver, op_FSI, xh0, t0, tf)
-end
+  # Solve FSI problem
+  @timeit "FSI problem" begin
+  println("Defining FSI solver")
+  xh0 = interpolate_everywhere([u(0.0),v(0.0),p(0.0)],X_FSI(0.0))
+  nls = NLSolver(
+  show_trace = true,
+  method = :newton,
+  linesearch = BackTracking(),
+  ftol = 1.0e-10,
+  iterations = 50
+  )
+  odes =  ThetaMethod(nls, dt, 0.5)
+  solver = TransientFESolver(odes)
+  xht = solve(solver, op_FSI, xh0, t0, tf)
+  end
 
-# Compute outputs
-out_params = Dict(
-:u=>u,
-:v=>v,
-:p=>p,
-:filePath=>filePath,
-:is_vtk=>is_vtk
-)
-output = computeOutputs(xht,Tₕ,quads,strategy,out_params)
+  # Compute outputs
+  out_params = Dict(
+  :u=>u,
+  :v=>v,
+  :p=>p,
+  :filePath=>filePath,
+  :is_vtk=>is_vtk
+  )
+  output = computeOutputs(xht,Tₕ,dTₕ,strategy,out_params)
 
 end
 
@@ -305,7 +304,7 @@ function get_FE_spaces(problem::Problem{:analytical},strategy::WeakForms.MeshStr
   )
 end
 
-function computeOutputs(xht,Tₕ,quads,strategy,params)
+function computeOutputs(xht,Tₕ,dTₕ,strategy,params)
 
   # Unpack parameters
   u = params[:u]
@@ -326,18 +325,18 @@ function computeOutputs(xht,Tₕ,quads,strategy,params)
       println("============================")
 
       # Compute errors
-      eu = u(t) - restrict(xh[1],Tₕ[:Ω])
-      ev = v(t) - restrict(xh[2],Tₕ[:Ω])
-      ep = p(t) - restrict(xh[3],Tₕ[:Ω])
-      eul2 = sqrt(sum( integrate(l2(eu),Tₕ[:Ω],quads[:Ω] )))
-      evl2 = sqrt(sum( integrate(l2(ev),Tₕ[:Ω],quads[:Ω] )))
-      epl2 = sqrt(sum( integrate(l2(ep),Tₕ[:Ω],quads[:Ω] )))
+      eu = u(t) - xh[1]
+      ev = v(t) - xh[2]
+      ep = p(t) - xh[3]
+      eul2 = sqrt(∑( ∫(l2(eu))dTₕ[:Ω] ))
+      evl2 = sqrt(∑( ∫(l2(ev))dTₕ[:Ω] ))
+      epl2 = sqrt(∑( ∫(l2(ep))dTₕ[:Ω] ))
 
       # Write to PVD
       if(is_vtk)
-        uh = restrict(xh[1],Tₕ[:Ω])
-        vh = restrict(xh[2],Tₕ[:Ω])
-        ph = restrict(xh[3],Tₕ[:Ω])
+        uh = xh[1]
+        vh = xh[2]
+        ph = xh[3]
         pvd[t] = createvtk(
         Tₕ[:Ω],
         filePath * "_$t.vtu",
