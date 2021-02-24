@@ -24,7 +24,7 @@ The fluid and structure can be strongly coupled, i.e. same variational space for
 fluid and solid displacements and velocities, or weakly coupled with different
 variational spaces and coupling enforced through Nitche's method.
 """
-function execute(problem::Problem{:elasticFlag}; kwargs...)
+function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
 
   # Problem setting (Default FSI-2)
   println("Setting Elastic flag problem parameters")
@@ -183,7 +183,7 @@ output = computeOutputs(xh0,xht,coupling,strategy,models,Tₕ,dTₕ,out_params)
 end
 
 function get_boundary_conditions(
-  problem::Problem{:elasticFlag},
+  problem::FSIProblem{:elasticFlag},
   strategy::WeakForms.MeshStrategy,
   coupling::WeakForms.Coupling{:strong},
   u_in,
@@ -204,7 +204,7 @@ function get_boundary_conditions(
 end
 
 function get_boundary_conditions(
-  problem::Problem{:elasticFlag},
+  problem::FSIProblem{:elasticFlag},
   strategy::WeakForms.MeshStrategy,
   coupling::WeakForms.Coupling{:weak},
   u_in,

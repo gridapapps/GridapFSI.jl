@@ -1,37 +1,7 @@
-module FSIDrivers
-
-# Julia modules used in the drivers
-using Gridap
-using Gridap.Helpers
-using Gridap.Geometry
-using Gridap.Arrays
-using Gridap.CellData
-using Gridap.MultiField: ConsecutiveMultiFieldStyle
-using GridapODEs.ODETools
-using GridapODEs.TransientFETools
-using GridapFSI.WeakForms
-using TimerOutputs
-using WriteVTK
-using LineSearches: BackTracking, HagerZhang
-using ForwardDiff
-using Test
-
-# Julia modules extended in the drivers
-import GridapODEs.TransientFETools: ∂t
-
-# Export functions to be used outside this module
-export Problem
-export execute
-
-# Problem
-struct Problem{Kind} end
-
 include("FSI_FESpaces.jl")
 include("ElasticFlag.jl")
 include("Analytical.jl")
 include("Oscillator.jl")
-
-execute(problem::Problem; kwargs...) = @notimplemented("The driver for problem: $problem is not implemented")
 
 # Output function
 function writePVD(filePath::String, trian::Triangulation, sol; append=false)
@@ -48,23 +18,6 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
                 cellfields = ["uh" => uh, "vh" => vh, "ph" => ph]
             )
         end
-    end
-end
-
-function _get_kwarg(kwarg,kwargs)
-    try
-        return kwargs[kwarg]
-    catch
-        s = "The key-word argument $(kwarg) is mandatory in the $problem driver"
-        error(s)
-    end
-end
-
-function _get_kwarg(kwarg,kwargs,value)
-    try
-        return kwargs[kwarg]
-    catch
-        return value
     end
 end
 
@@ -162,7 +115,5 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
     WeakForms.solid_jacobian_t_Ω(strategy,coupling,t,x,xt,dxt,y,s_params,dTₕ[:Ωs])
   end
   op = TransientFEOperator(res,jac,jac_t,X,Y)
-
-end
 
 end

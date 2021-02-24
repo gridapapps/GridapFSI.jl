@@ -4,7 +4,7 @@ Executes a transient FSI driver with a constant function in space, linear in tim
   v(x,t) = [1.0, -1.0]^T
   p(x,t) = 0.0
 """
-function execute(problem::Problem{:analytical};kwargs...)
+function execute(problem::FSIProblem{:analytical};kwargs...)
 
   # Problem setting
   println("Setting analytical fluid problem parameters")
@@ -233,7 +233,7 @@ function execute(problem::Problem{:analytical};kwargs...)
 
 end
 
-function get_boundary_conditions(problem::Problem{:analytical},strategy::WeakForms.MeshStrategy,u,v)
+function get_boundary_conditions(problem::FSIProblem{:analytical},strategy::WeakForms.MeshStrategy,u,v)
   boundary_conditions = (
   # Tags
   FSI_Vu_tags = ["boundary"],
@@ -248,7 +248,7 @@ function get_boundary_conditions(problem::Problem{:analytical},strategy::WeakFor
   )
 end
 
-function get_FE_spaces(problem::Problem{:analytical},strategy::WeakForms.MeshStrategy,model,model_fluid,order,bconds)
+function get_FE_spaces(problem::FSIProblem{:analytical},strategy::WeakForms.MeshStrategy,model,model_fluid,order,bconds)
   Vu_FSI = TestFESpace(
       model=model,
       valuetype=VectorValue{2,Float64},

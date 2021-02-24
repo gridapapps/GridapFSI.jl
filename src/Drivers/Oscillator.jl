@@ -1,4 +1,4 @@
-function execute(problem::Problem{:oscillator}; kwargs...)
+function execute(problem::FSIProblem{:oscillator}; kwargs...)
 
   # Define cylinder motion
   u_y = _get_kwarg(:u_y,kwargs)
@@ -202,7 +202,7 @@ function execute(problem::Problem{:oscillator}; kwargs...)
 end
 
 function get_boundary_conditions(
-  problem::Problem{:oscillator},
+  problem::FSIProblem{:oscillator},
   strategy::WeakForms.MeshStrategy,
   coupling::WeakForms.Coupling{:weak},
   u_in,
@@ -234,7 +234,7 @@ function get_boundary_conditions(
 end
 
 function get_boundary_conditions(
-  problem::Problem{:oscillator},
+  problem::FSIProblem{:oscillator},
   strategy::WeakForms.MeshStrategy,
   coupling::WeakForms.Coupling{:strong},
   u_in,
@@ -266,7 +266,7 @@ function get_boundary_conditions(
 end
 
 function get_FE_spaces(
-  problem::Problem{:oscillator},
+  problem::FSIProblem{:oscillator},
   strategy::WeakForms.MeshStrategy{:biharmonic},
   coupling::WeakForms.Coupling,
   model,
@@ -348,7 +348,7 @@ function get_FE_spaces(
     X_NSI = TransientMultiFieldFESpace([Uw_NSI,Uu_NSI,Uv_NSI,P])
   )
 end
-function computeOutputs(problem::Problem{:oscillator},strategy::WeakForms.MeshStrategy;params=Dict())#, sol, xh0)
+function computeOutputs(problem::FSIProblem{:oscillator},strategy::WeakForms.MeshStrategy;params=Dict())#, sol, xh0)
 
   # Unpack parameters
   model = params["model"]
