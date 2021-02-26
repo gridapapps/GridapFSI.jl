@@ -3,8 +3,8 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   # Parameters
   L = 2*π
   H = 1.0
-  n = 4
-  order = 2
+  n = 3
+  order = 1
   g = 9.81
   ξ = 0.1
   λ = L/2
@@ -14,8 +14,7 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   t₀ = 0.0
   tf = 8*π
   Δt = h/(10*λ*ω)
-  γ = 0.5
-  β = 0.25
+  θ = 0.5
 
   # Exact solution
   ϕₑ(x,t) = ω/k * ξ * (cosh(k*(x[2]))) / sinh(k*H) * sin(k*x[1] - ω*t)
@@ -32,53 +31,62 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   labels = get_face_labeling(model)
   add_tag_from_tags!(labels,"bottom",[1,2,5])
   add_tag_from_tags!(labels,"free_surface",[3,4,6])
+  bgface_to_mask = get_face_mask(labels,[3,4,6],1)
+  model_Γ =BoundaryDiscreteModel(Polytope{1},model,bgface_to_mask)
 
   # Triangulation
   Ω = Triangulation(model)
-  Γ = BoundaryTriangulation(model,tags="free_surface")
+  Γ = Triangulation(model_Γ)
   dΩ = Measure(Ω,2*order)
   dΓ = Measure(Γ,2*order)
 
   # FE spaces
   reffe = ReferenceFE(lagrangian,Float64,order)
   V = TestFESpace(model,reffe,conformity=:H1)
+  V_Γ = TestFESpace(model_Γ,reffe,conformity=:H1)
   U = TransientTrialFESpace(V)
+  U_Γ = TransientTrialFESpace(V_Γ)
+  X = TransientMultiFieldFESpace([U,U_Γ])
+  Y = MultiFieldFESpace([V,V_Γ])
 
   # Weak form
-  m(ϕₜₜ,w) = ∫( 1/g*ϕₜₜ*w )dΓ
-  c(ϕₜ,w) = ∫( 0.0*ϕₜ*w )dΓ
-  a(ϕ,w) = ∫( ∇(ϕ)⋅∇(w) )dΩ
-  b(w) = ∫( 0.0*w )dΓ
-  op = TransientConstantFEOperator(m,c,a,b,U,V)
+  α = 2/Δt
+  m((ϕt,ηt),(w,v)) = ∫( 0.5*(α/g*(w*ϕt) + v*ϕt) - (w*ηt) )dΓ
+  a((ϕ,η),(w,v)) = ∫( ∇(ϕ)⋅∇(w) )dΩ + ∫( 0.5*(α*(w*η) + g*v*η) )dΓ
+  b((w,v)) = ∫( 0.0*w )dΓ
+  op = TransientConstantFEOperator(m,a,b,X,Y)
 
   # Solver
   ls = LUSolver()
-  odes = Newmark(ls,Δt,γ,β)
+  odes = ThetaMethod(ls,Δt,θ)
   solver = TransientFESolver(odes)
 
   # Initial solution
-  ϕ₀ = interpolate_everywhere(ϕₑ(0.0),U(0.0))
-  ∂ϕ₀_∂t = interpolate_everywhere(∂t(ϕₑ)(0.0),U(0.0))
-  ∂ϕ₀_∂tt = interpolate_everywhere(∂tt(ϕₑ)(0.0),U(0.0))
+  x₀ = interpolate_everywhere([ϕₑ(0.0),ηₑ(0.0)],X(0.0))
 
   # Solution
-  sol_t = solve(solver,op,ϕ₀,∂ϕ₀_∂t,∂ϕ₀_∂tt,t₀,tf)
+  sol_t = solve(solver,op,x₀,t₀,tf)
 
   # Post-process
   #η(∂tϕₙ) = -β*Δt/γ*∂tϕₙ/g
   l2(w) = √(∑(∫(w*w)dΩ))
   E_kin(w) = 0.5*∑( ∫(∇(w)⋅∇(w))dΩ )
-  #E_pot(w) = g*0.5*∑( ∫(η(w)⋅η(w))dΓ )
+  E_pot(w) = g*0.5*∑( ∫(w*w)dΓ )
   Eₑ = 0.5*g*ξ^2*L
 
-  next = Base.iterate(sol_t)
-  while next != nothing
-    (ϕₙ,tₙ), state = next
-    U_aux, ode_state = state
-    uf,u0,v0,a0,tf,cache = ode_state
-    Eₜ = E_kin(ϕₙ) #+ E_pot(v0)
-    println(Eₜ/Eₑ)
-    next = Base.iterate(sol_t,state)
+  # next = Base.iterate(sol_t)
+  # while next != nothing
+  #   (ϕₙ,tₙ), state = next
+  #   U_aux, ode_state = state
+  #   uf,u0,v0,a0,tf,cache = ode_state
+  #   Eₜ = E_kin(ϕₙ) #+ E_pot(v0)
+  #   println(Eₜ/Eₑ)
+  #   next = Base.iterate(sol_t,state)
+  # end
+
+  for ((ϕn,ηn),tn) in sol_t
+    E = E_kin(ϕn) + E_pot(ηn)
+    println(E/Eₑ)
   end
 
 
