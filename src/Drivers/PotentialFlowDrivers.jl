@@ -3,8 +3,8 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   # Parameters
   L = 2*π
   H = 1.0
-  n = 3
-  order = 1
+  n = 20
+  order = 2
   g = 9.81
   ξ = 0.1
   λ = L/2
@@ -68,28 +68,29 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   sol_t = solve(solver,op,x₀,t₀,tf)
 
   # Post-process
-  #η(∂tϕₙ) = -β*Δt/γ*∂tϕₙ/g
-  l2(w) = √(∑(∫(w*w)dΩ))
+  l2_Ω(w) = √(∑(∫(w*w)dΩ))
+  l2_Γ(v) = √(∑(∫(v*v)dΓ))
   E_kin(w) = 0.5*∑( ∫(∇(w)⋅∇(w))dΩ )
-  E_pot(w) = g*0.5*∑( ∫(w*w)dΓ )
+  E_pot(v) = g*0.5*∑( ∫(v*v)dΓ )
   Eₑ = 0.5*g*ξ^2*L
 
-  # next = Base.iterate(sol_t)
-  # while next != nothing
-  #   (ϕₙ,tₙ), state = next
-  #   U_aux, ode_state = state
-  #   uf,u0,v0,a0,tf,cache = ode_state
-  #   Eₜ = E_kin(ϕₙ) #+ E_pot(v0)
-  #   println(Eₜ/Eₑ)
-  #   next = Base.iterate(sol_t,state)
-  # end
-
+  folderName = "ϕFlow-results"
+  if !isdir(folderName)
+    mkdir(folderName)
+  end
+  filePath_Ω = folderName * "/fields_Ω"
+  filePath_Γ = folderName * "/fields_Γ"
+  pvd_Ω = paraview_collection(filePath_Ω, append=false)
+  pvd_Γ = paraview_collection(filePath_Γ, append=false)
   for ((ϕn,ηn),tn) in sol_t
     E = E_kin(ϕn) + E_pot(ηn)
-    println(E/Eₑ)
+    error_ϕ = l2_Ω(ϕn-ϕₑ(tn))
+    error_η = l2_Γ(ηn-ηₑ(tn))
+    #println(E/Eₑ," ", error_ϕ," ",error_η)
+
+    pvd_Ω[tn] = createvtk(Ω,filePath_Ω * "_$tn.vtu",cellfields = ["phi" => ϕn])
+    pvd_Γ[tn] = createvtk(Γ,filePath_Γ * "_$tn.vtu",cellfields = ["eta" => ηn])
   end
-
-
-  println("xxxx")
-
+  vtk_save(pvd_Ω)
+  vtk_save(pvd_Γ)
 end
