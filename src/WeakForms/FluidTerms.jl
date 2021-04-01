@@ -2,6 +2,12 @@
 # ======
 a_ST((v,p),(φ,q),μ,dΩ) = ∫( ε(φ) ⊙ σᵥ_Ωf(μ,v) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
 l_ST((φ,q),f,dΩ) = ∫( φ⋅f )dΩ
+function a_ST_Γd((v,p),(φ,q),n,μ,γ,h,dΓ)
+  ∫( γ*μ/h*φ⋅v - φ ⋅ ( n⋅σᵥ_Ωf(μ,v) - n*p ) + ( n⋅σᵥ_Ωf(μ,φ) - n*q) ⋅ v )dΓ
+end
+function l_ST_Γd((φ,q),n,μ,γ,h,vD,dΓ)
+  ∫( γ*μ/h*φ⋅vD + ( n⋅σᵥ_Ωf(μ,φ) - n*q) ⋅ vD )dΓ
+end
 
 
 # Navier-Stokes
@@ -28,10 +34,10 @@ function a_NS_ALE((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
      (∇⋅φ) * Pₚ_Ωf(u,p) +
      q * ((J∘∇(u)) * (∇(v) ⊙ (FinvT∘∇(u)))) )dΩ
 end
-function a_NS_ALE_ΓD((u,v,p),(ut,vt,pt),(ϕ,φ,q),t,vD,n,μ,γ,h,dΓ)
-  ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅(ut-vD(t))) + γ*μ/h*(φ⋅(v-vD(t))) +
+function a_NS_ALE_ΓD((u,v,p),(ut,vt,pt),(ϕ,φ,q),t,n,μ,γ,h,dΓ)
+  ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅ut) + γ*μ/h*(φ⋅v) +
     -(φ ⋅ (n⋅Pᵥ_Ωf(μ,u,v))) - (φ ⋅ n)*Pₚ_Ωf(u,p) +
-    (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ (v-vD(t)) + (n*Pₚ_Ωf(u,q)) ⋅ (v-vD(t)) )dΓ
+    (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ v + (n*Pₚ_Ωf(u,q)) ⋅ v )dΓ
 end
 
 # LHS linearized terms
@@ -67,6 +73,10 @@ end
 # RHS terms
 function l_NS_ALE((ϕ,φ,q),f,t,dΩ)
   ∫( φ⋅f(t) )dΩ
+end
+function l_NS_ALE_ΓD((ϕ,φ,q),t,vD,n,μ,γ,h,dΓ)
+  ∫( γ*μ/h*(ϕ⋅vD(t)) + γ*μ/h*(φ⋅vD(t)) +
+    (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ vD(t) + (n*Pₚ_Ωf(u,q)) ⋅ vD(t) )dΓ
 end
 
 # Monolithic mesh motion
