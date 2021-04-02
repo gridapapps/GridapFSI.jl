@@ -94,3 +94,5 @@ function execute(problem::PotentialFlowProblem{:analytical};kwargs...)
   vtk_save(pvd_Ω)
   vtk_save(pvd_Γ)
 end
+
+include("PotentialFlowBeam.jl")
