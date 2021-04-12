@@ -280,7 +280,7 @@ function fluid_residual_Γ(st::MeshStrategy,t,x,xt,y,params,dΓ)
   xtf = get_fluid_vars_Ω(st,c,xt)
   yf = get_fluid_vars_Ω(st,c,y)
   fsi_residual_Γi(st,xf,yf,params,dΓ) +
-  a_NS_ALE_ΓD(xf,xtf,yf,t,params[:n],params[:μ],params[:γ],params[:h],dΓ) +
+  a_NS_ALE_ΓD(xf,xtf,yf,t,params[:n],params[:μ],params[:γ],params[:h],dΓ) -
   l_NS_ALE_ΓD(yf,t,params[:vD],params[:n],params[:μ],params[:γ],params[:h],dΓ)
 end
 function fluid_jacobian_Γ(st::MeshStrategy,t,x,xt,y,params,dΓ)
