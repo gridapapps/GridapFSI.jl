@@ -5,10 +5,10 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
   H = 1.0
   xb₀ = 0.8*π
   xb₁ = 1.2*π
-  n = 200
+  n = 100
   order = 2
   g = 9.81
-  ξ = 0.01
+  ξ = 0.001
   λ = L/2
   k = 2*π/L
   h = L/n
@@ -27,15 +27,8 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
   # Interior Domain
   domain = (0,L,0,H)
   partition = (n,n/10)
-  model_Ω = simplexify(CartesianDiscreteModel(domain,partition))#;isperiodic=(true,false)))
+  model_Ω = CartesianDiscreteModel(domain,partition;isperiodic=(true,false))
   Ω = Triangulation(model_Ω)
-
-  # # Surface Domain
-  # labels_Ω = get_face_labeling(model_Ω)
-  # add_tag_from_tags!(labels_Ω,"bottom",[1,2,5])
-  # add_tag_from_tags!(labels_Ω,"top",[3,4,6])
-  # bgface_to_mask = get_face_mask(labels_Ω,[3,4,6],1)
-  # model_Γ =BoundaryDiscreteModel(Polytope{1},model_Ω,bgface_to_mask)
 
   # Surface domains
   function is_beam(coords)
@@ -58,14 +51,24 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
   Γfface_Γface = findall(!,Γface_mask)
   Γb = BoundaryTriangulation(model_Ω,view(Γface_to_bgface,Γbface_Γface))
   Γf = BoundaryTriangulation(model_Ω,view(Γface_to_bgface,Γfface_Γface))
+  model_Γb = BoundaryDiscreteModel(Polytope{1},model_Ω,view(Γface_to_bgface,Γbface_Γface))
+  Λb = SkeletonTriangulation(model_Γ,Γface_mask)
+  nΛb = get_normal_vector(Λb)
 
-  # writevtk(Γb,"Gb")
-  # writevtk(Γf,"Gf")
+  writevtk(model_Γb,"mGb")
+  writevtk(Γb,"Gb")
+  writevtk(Γf,"Gf")
+  writevtk(Λb,"Lb")
 
   # Quadratures
   dΩ = Measure(Ω,2*order)
   dΓb = Measure(Γb,2*order)
   dΓf = Measure(Γf,2*order)
+  dΛb = Measure(Λb,2*order)
+
+  qΛ = get_cell_points(CellQuadrature(Λb,1))
+  mean_mask = CellField(mean(CellField(Γface_mask,Γ)),Λb)
+  writevtk(Λb,"Lb",cellfields=["mask"=>mean_mask])
 
   # FE spaces
   reffe = ReferenceFE(lagrangian,Float64,order)
@@ -77,19 +80,18 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
   Y = MultiFieldFESpace([V_Ω,V_Γ])
 
   # Weak form
-  α = 2/Δt
-  #m((ϕtt,ηtt),(w,v)) = ∫( v*ηtt )dΓb
-  #c((ϕt,ηt),(w,v)) = ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓb + ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓf
-  m((ϕt,ηt),(w,v)) = ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓb + ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓf
-  a((ϕ,η),(w,v)) = ∫( ∇(ϕ)⋅∇(w) )dΩ + ∫( Δ(v)*Δ(η) + 0.5*(α/g*w + v)*g*η )dΓb + ∫( 0.5*(α/g*w + v)*g*η )dΓf
-  b((w,v)) = ∫( 0.5*(α/g*w + v)*(-0.5) )dΓb
-  #op = TransientConstantFEOperator(m,c,a,b,X,Y)
-  op = TransientConstantFEOperator(m,a,b,X,Y)
+  γ = 1
+  α = 4/Δt^2 + 2/Δt
+  m((ϕtt,ηtt),(w,v)) = ∫( v*ηtt )dΓb
+  c((ϕt,ηt),(w,v)) = ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓb + ∫( 0.5*(α/g*w + v)*ϕt - w*ηt )dΓf
+  a((ϕ,η),(w,v)) = ∫( ∇(ϕ)⋅∇(w) )dΩ + ∫( Δ(v)*Δ(η) + 0.5*(α/g*w + v)*g*η )dΓb + ∫( 0.5*(α/g*w + v)*g*η )dΓf +
+                   ∫((mean_mask==1)*( - mean(Δ(η))*jump(∇(v)⋅nΛb) - jump(∇(η)⋅nΛb)*mean(Δ(v)) + γ/h*jump(∇(η)⋅nΛb)*jump(∇(v)⋅nΛb)) )dΛb
+  b((w,v)) = ∫( 0.5*(α/g*w + v)*(-0.0) )dΓb
+  op = TransientConstantFEOperator(m,c,a,b,X,Y)
 
   # Solver
   ls = LUSolver()
-  #odes = Newmark(ls,Δt,0.5,0.25)
-  odes = ThetaMethod(ls,Δt,0.5)
+  odes = Newmark(ls,Δt,0.5,0.25)
   solver = TransientFESolver(odes)
 
   # Initial solution
@@ -98,8 +100,8 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
   a₀ = interpolate_everywhere([∂tt(ϕₑ)(0.0),∂tt(ηₑ)(0.0)],X(0.0))
 
   # Solution
-  #sol_t = solve(solver,op,(x₀,v₀,a₀),t₀,tf)
-  sol_t = solve(solver,op,x₀,t₀,tf)
+  sol_t = solve(solver,op,(x₀,v₀,a₀),t₀,tf)
+  #sol_t = solve(solver,op,x₀,t₀,tf)
 
   # Post-process
   l2_Ω(w) = √(∑(∫(w*w)dΩ))
@@ -127,8 +129,8 @@ function execute(problem::PotentialFlowProblem{:beam};kwargs...)
     # println(E/Eₑ," ", error_ϕ," ",error_η)
 
     pvd_Ω[tn] = createvtk(Ω,filePath_Ω * "_$tn.vtu",cellfields = ["phi" => ϕn],order=2)
-    pvd_Γb[tn] = createvtk(Γb,filePath_Γb * "_$tn.vtu",cellfields = ["eta" => ηn],order=2)
-    pvd_Γf[tn] = createvtk(Γf,filePath_Γf * "_$tn.vtu",cellfields = ["eta" => ηn],order=2)
+    pvd_Γb[tn] = createvtk(Γb,filePath_Γb * "_$tn.vtu",cellfields = ["eta" => ηn],nsubcells=10)
+    pvd_Γf[tn] = createvtk(Γf,filePath_Γf * "_$tn.vtu",cellfields = ["eta" => ηn],nsubcells=10)
   end
   vtk_save(pvd_Ω)
   vtk_save(pvd_Γb)

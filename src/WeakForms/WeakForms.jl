@@ -30,7 +30,7 @@ Stokes residual:
 R([u,p],[v,q]=a([u,p],[v,q])-l([v,q]))
 """
 function stokes_residual(x,y,μ::Real,f,dΩ)
-  a_ST(x,y,μ,dΩ) #- l_ST(y,f,dΩ)
+  a_ST(x,y,μ,dΩ) - l_ST(y,f,dΩ)
 end
 function stokes_residual(strategy::MeshStrategy,(u,v,p),(ϕ,φ,q),μ::Real,f,dΩ)
   ∫(ϕ⋅u)dΩ + stokes_residual((v,p),(φ,q),μ,f,dΩ)
@@ -47,6 +47,10 @@ end
 function stokes_jacobian(strategy::MeshStrategy{:biharmonic},(dw,du,dv,dp),(ψ,ϕ,φ,q),μ::Real,dΩ)
   ∫(ϕ⋅du + ψ⋅dw)dΩ + stokes_jacobian((dv,dp),(φ,q),μ,dΩ)
 end
+function stokes_residual_Γd(x,y,n,μ::Real,γ::Real,h,vD,dΓ)
+  a_ST_Γd(x,y,n,μ,γ,h,dΓ) - l_ST_Γd(y,n,μ,γ,h,vD,dΓ)
+end
+
 
 # FSI (fluid)
 # ===========
@@ -276,7 +280,8 @@ function fluid_residual_Γ(st::MeshStrategy,t,x,xt,y,params,dΓ)
   xtf = get_fluid_vars_Ω(st,c,xt)
   yf = get_fluid_vars_Ω(st,c,y)
   fsi_residual_Γi(st,xf,yf,params,dΓ) +
-  a_NS_ALE_ΓD(xf,xtf,yf,t,params[:vD],params[:n],params[:μ],params[:γ],params[:h],dΓ)
+  a_NS_ALE_ΓD(xf,xtf,yf,t,params[:n],params[:μ],params[:γ],params[:h],dΓ) -
+  l_NS_ALE_ΓD(yf,t,params[:vD],params[:n],params[:μ],params[:γ],params[:h],dΓ)
 end
 function fluid_jacobian_Γ(st::MeshStrategy,t,x,xt,y,params,dΓ)
   xf = get_fluid_vars_Ω(st,c,x)
