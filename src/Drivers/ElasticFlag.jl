@@ -101,7 +101,7 @@ function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
-  op_ST = get_Stokes_operator(X_ST,Y_ST,strategy,dTₕ[:Ωf],μ_f,f(0.0))
+  op_ST = get_Stokes_operator(X_ST,Y_ST,dTₕ[:Ωf],μ_f,f(0.0))
 
   # Setup equation parameters
   mesh_params = Dict{Symbol,Any}(
@@ -145,16 +145,20 @@ function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
   # Solve Stokes problem
   @timeit "ST problem" begin
   println("Defining Stokes solver")
-  xh = solve(op_ST)
+  xh = solve(op_ST)  
+  if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
+    xh0  = interpolate_everywhere([u_noSlip(0.0),u_noSlip(0.0),xh[1],xh[2]],X_FSI(0.0))
+  else
+    xh0  = interpolate_everywhere([u_noSlip(0.0),xh[1],xh[2]],X_FSI(0.0))  
+  end
   if(is_vtk)
-    writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
+    writePVD(filePath, Tₕ[:Ωf], [(xh0, 0.0)])
   end
 end
 
 # Solve FSI problem
 @timeit "FSI problem" begin
 println("Defining FSI solver")
-xh0  = interpolate(xh,X_FSI(0.0))
 nls = NLSolver(
   show_trace = true,
   method = :newton,

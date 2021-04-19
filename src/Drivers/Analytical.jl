@@ -140,7 +140,7 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
-  op_ST = get_Stokes_operator(X_ST,Y_ST,strategy,dTₕ[:Ωf],μ_f,fv_ST_Ωf(0.0))
+  op_ST = get_Stokes_operator(X_ST,Y_ST,dTₕ[:Ωf],μ_f,fv_ST_Ωf(0.0))
 
   # Setup equation parameters
   mesh_params = Dict{Symbol,Any}(
@@ -186,22 +186,18 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
     println("Defining Stokes solver")
     xh = solve(op_ST)
     if(is_vtk)
-      writePVD(filePath, Tₕ[:Ωf], [(xh, 0.0)])
+      writePVD(filePath, Tₕ[:Ωf], [((u(0.0),xh...), 0.0)])
     end
   end
 
   # Compute Stokes solution L2-norm
   l2(w) = w⋅w
-  eu_ST = u(0.0) - xh[1]
-  ev_ST = v(0.0) - xh[2]
-  ep_ST = p(0.0) - xh[3]
-  eul2_ST = sqrt(∑( ∫(l2(eu_ST))dTₕ[:Ωf] ))
+  ev_ST = v(0.0) - xh[1]
+  ep_ST = p(0.0) - xh[2]
   evl2_ST = sqrt(∑( ∫(l2(ev_ST))dTₕ[:Ωf] ))
   epl2_ST = sqrt(∑( ∫(l2(ep_ST))dTₕ[:Ωf] ))
-  println("Stokes L2-norm u: ", eul2_ST)
   println("Stokes L2-norm v: ", evl2_ST)
   println("Stokes L2-norm p: ", epl2_ST)
-  @test eul2_ST < 1.0e-10
   @test evl2_ST < 1.0e-10
   @test epl2_ST < 1.0e-10
 

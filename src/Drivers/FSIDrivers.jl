@@ -47,9 +47,9 @@ function get_FSI_measures(triangulations,order)
   Dict(:Ω=>dΩ, :Ωs=>dΩs, :Ωf=>dΩf, :Γi=>dΓi)
 end
 
-function get_Stokes_operator(X,Y,strategy,dΩ,μ,f)
-  res(x,y) = WeakForms.stokes_residual(strategy,x,y,μ,f,dΩ)
-  jac(x,dx,y) = WeakForms.stokes_jacobian(strategy,dx,y,μ,dΩ)
+function get_Stokes_operator(X,Y,dΩ,μ,f)
+  res(x,y) = WeakForms.stokes_residual(x,y,μ,f,dΩ)
+  jac(x,dx,y) = WeakForms.stokes_jacobian(dx,y,μ,dΩ)
   op = FEOperator(res,jac,X,Y)
 end
 
