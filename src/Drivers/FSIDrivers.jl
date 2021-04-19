@@ -2,6 +2,7 @@ include("FSI_FESpaces.jl")
 include("ElasticFlag.jl")
 include("Analytical.jl")
 include("Oscillator.jl")
+include("ElasticFlagAggFEM.jl")
 
 # Output function
 function writePVD(filePath::String, trian::Triangulation, sol; append=false)

@@ -9,6 +9,7 @@ using Gridap.CellData
 using Gridap.MultiField: ConsecutiveMultiFieldStyle
 using GridapODEs.ODETools
 using GridapODEs.TransientFETools
+using GridapEmbedded
 using GridapFSI.WeakForms
 using TimerOutputs
 using WriteVTK
