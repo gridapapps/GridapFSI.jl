@@ -105,24 +105,42 @@ function execute(problem::FSIProblem{:elasticFlagAggFem}; kwargs...)
   
   ## FE Spaces
   println("Defining FE spaces")
-  models = (Ωf = model_fluid, Ωs = model_solid)
-  bconds = (
-    FSI_Vu_f_tags = ["inlet","wall","outlet"],
-    FSI_Vv_f_tags = ["inlet","wall"],
-    FSI_Vu_s_tags = String[],
-    FSI_Vv_s_tags = String[],
-    ST_Vu_tags = ["inlet","wall","outlet"],
-    ST_Vv_tags = ["inlet","wall"],
-    FSI_Vu_f_values = [u_noSlip,u_noSlip,u_noSlip],
-    FSI_Vv_f_values = [u_in,u_noSlip],
-    FSI_Vu_s_values = Function[],
-    FSI_Vv_s_values = Function[],
-    ST_Vu_values = [u_noSlip(0.0),u_noSlip(0.0),u_noSlip(0.0)],
-    ST_Vv_values = [u_in(0.0),u_noSlip(0.0)]
+  FEᵥ_std = FiniteElements(
+    PhysicalDomain(),
+    model_fluid,
+    lagrangian,
+    VectorValue{2,Float64},
+    order
   )
-  strategy = WeakForms.MeshStrategy{:laplacian}()
-  coupling = WeakForms.Coupling{:weak}()
-  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,models,order,bconds)
+  FEᵥ_ser = FiniteElements(
+    PhysicalDomain(),
+    model_fluid,
+    lagrangian,
+    VectorValue{2,Float64},
+    order,
+    space=:S
+  )
+  FEₚ_std = FiniteElements(
+    PhysicalDomain(),
+    model_fluid,
+    lagrangian,
+    Float64,
+    order-1,
+    space=:P
+  )
+  
+  Vᵥ_std_ST = FESpace(model_fluid,FEᵥ_std,dirichlet_tags=["inlet","wall"])
+  Vᵥ_ser_ST = FESpace(model_fluid,FEᵥ_ser,conformity=:L2)
+  Q_std = FESpace(model_fluid,FEₚ_std,conformity=:L2)
+
+  Vᵥ_ST = AgFEMSpace(Vᵥ_std_ST,aggregates,Vᵥ_ser_ST)
+  Q = AgFEMSpace(Q_std,aggregates)
+
+  Uᵥ_ST = TrialFESpace(Vᵥ_ST,[u_in(0.0),u_noSlip(0.0)])
+  P = TrialFESpace(Q)
+
+  Y_ST = MultiFieldFESpace([Vᵥ_ST,Q])
+  X_ST = MultiFieldFESpace([Uᵥ_ST,P])
 
   ## Weak Forms
   # Stokes operator
