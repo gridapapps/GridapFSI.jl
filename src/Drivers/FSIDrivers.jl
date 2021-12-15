@@ -21,28 +21,28 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
     end
 end
 
-function get_FSI_triangulations(models,coupling)
-  trian = Triangulation(models[:Ω])
-  trian_s = Triangulation(models[:Ωs])
-  trian_f = Triangulation(models[:Ωf])
-  function Γi_triangulation(coupling)
-    if typeof(coupling) == WeakForms.Coupling{:weak}
-      InterfaceTriangulation(models[:Ωf],models[:Ωs])
-    else
-      BoundaryTriangulation(models[:Ωf],tags="interface")
-    end
-  end
-  trian_Γi = Γi_triangulation(coupling)
-  Dict(:Ω=>trian, :Ωs=>trian_s, :Ωf=>trian_f, :Γi=>trian_Γi)
-end
+# function get_FSI_triangulations(models,coupling)
+#   trian = Triangulation(models[:Ω])
+#   trian_s = Triangulation(models[:Ωs])
+#   trian_f = Triangulation(models[:Ωf])
+#   function Γi_triangulation(coupling)
+#     if typeof(coupling) == WeakForms.Coupling{:weak}
+#       InterfaceTriangulation(models[:Ωf],models[:Ωs])
+#     else
+#       BoundaryTriangulation(models[:Ωf],tags="interface")
+#     end
+#   end
+#   trian_Γi = Γi_triangulation(coupling)
+#   Dict(:Ω=>trian, :Ωs=>trian_s, :Ωf=>trian_f, :Γi=>trian_Γi)
+# end
 
-function get_FSI_measures(triangulations,order)
+function get_FSI_measures(Tₕ,order)
   degree = 2*order
   bdegree = 2*order
-  dΩ  = Measure(triangulations[:Ω],degree)
-  dΩs = Measure(triangulations[:Ωs],degree)
-  dΩf = Measure(triangulations[:Ωf],degree)
-  dΓi = Measure(triangulations[:Γi],bdegree)
+  dΩ  = Measure(Tₕ[:Ω],degree)
+  dΩs = Measure(Tₕ[:Ωs],degree)
+  dΩf = Measure(Tₕ[:Ωf],degree)
+  dΓi = Measure(Tₕ[:Γi],bdegree)
   Dict(:Ω=>dΩ, :Ωs=>dΩs, :Ωf=>dΩf, :Γi=>dΓi)
 end
 
