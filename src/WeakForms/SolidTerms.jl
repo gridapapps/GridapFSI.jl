@@ -1,8 +1,8 @@
 # Primal Finite Elasticity (Saint-Venant)
 # ========================
-function a_PFE((u,v),(ut,vt),(ϕ,φ),ρ,λ,μ,dΩ)
-  ∫( ϕ⋅ut - ϕ⋅v +
-     φ⋅(ρ*vt) + (∇(φ) ⊙ Pₛᵥ_Ωs(λ,μ,u)) )dΩ
+function a_PFE((u,v),(ϕ,φ),ρ,λ,μ,dΩ)
+  ∫( ϕ⋅∂t(u) - ϕ⋅v +
+     φ⋅(ρ*∂t(v)) + (∇(φ) ⊙ Pₛᵥ_Ωs(λ,μ,u)) )dΩ
 end
 function da_PFE_dx((u,v),(du,dv),(ϕ,φ),ρ,λ,μ,dΩ)
   ∫( 0.0*(du⋅ϕ) - (ϕ⋅dv) +
