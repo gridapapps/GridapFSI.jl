@@ -114,11 +114,10 @@ function residual_Ωs(st::MeshStrategy,t,x,y,params,dΩ)
 end
 function residual_Ωs(st::MeshStrategy{:biharmonic},t,x,y,params,dΩ)
   _x = (x[2],x[3])
-  _xt = (xt[2],xt[3])
   _y = (y[2],y[3])
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]; fₘ = params[:fu]; fᵤ = params[:fu]; fᵥ = params[:fv]
-  a_mesh(st,x,y,α,α,dΩ) + a_PFE(_x,_xt,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
+  a_mesh(st,x,y,α,α,dΩ) + a_PFE(_x,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
 end
 # Spatial Jacobian
 function jacobian_Ωs(st::MeshStrategy,x,dx,y,params,dΩ)

@@ -16,7 +16,7 @@ function a_NS((v,p),(φ,q),μ,ρ,dΩ)
   ∫( ρ*(ϕ ⋅ ∂t(v)) + ρ*( conv∘(v,∇(v))) + ε(φ) ⊙ σᵥ_Ωf(μ,v) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
 end
 function da_NS_dx((v,p),(dv,dp),(φ,q),μ,ρ,dΩ)
-  ∫( 0.0*ρ*(ϕ ⋅ dv) + ρ*( dconv∘(dv,∇(dv),v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf(μ)∘(ε(dv))) - (∇⋅φ) * dp + q * (∇⋅dv) )dΩ
+  ∫( ρ*( dconv∘(dv,∇(dv),v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf(μ)∘(ε(dv))) - (∇⋅φ) * dp + q * (∇⋅dv) )dΩ
 end
 function da_NS_dxt((dvt,dpt),(φ,q),ρ,dΩ)
   ∫( ρ*(ϕ ⋅ dvt) )dΩ
@@ -35,7 +35,7 @@ function a_NS_ALE((u,v,p),(ϕ,φ,q),μ,ρ,dΩ)
      q * ((J∘∇(u)) * (∇(v) ⊙ (FinvT∘∇(u)))) )dΩ
 end
 function a_NS_ALE_ΓD((u,v,p),(ϕ,φ,q),t,n,μ,γ,h,dΓ)
-  ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅∂t(u)) + γ*μ/h*(φ⋅v) +
+  ∫( γ*μ/h*(ϕ⋅∂t(u)) + γ*μ/h*(φ⋅v) +
     -(φ ⋅ (n⋅Pᵥ_Ωf(μ,u,v))) - (φ ⋅ n)*Pₚ_Ωf(u,p) +
     (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ v + (n*Pₚ_Ωf(u,q)) ⋅ v )dΓ
 end
@@ -61,7 +61,7 @@ end
 function da_NS_ALE_ΓD_dx((u,v,p),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ)
   dP_tensor(u,du,v,dv,p) = dPᵥ_Ωf_du(μ,u,du,v) + Pᵥ_Ωf_dv(μ,u,dv) + dPₚ_Ωf_du(u,du,p)
   dP_scalar(u,dp) = Pₚ_Ωf_dp(u,dp)
-  ∫( 0.0*(ϕ⋅du) + γ*μ/h*(φ⋅dv) +
+  ∫( γ*μ/h*(φ⋅dv) +
      - φ ⋅ ( n⋅dP_tensor(u,du,v,dv,p) + n*dP_scalar(u,dp) ) +
      (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ dv + (n⋅dPᵥ_Ωf_du(μ,u,du,φ)) ⋅ v +
      (n*Pₚ_Ωf(u,q)) ⋅ dv + (n⋅dPₚ_Ωf_du(u,du,q)) ⋅ v )dΓ
