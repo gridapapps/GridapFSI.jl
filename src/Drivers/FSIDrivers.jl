@@ -21,21 +21,6 @@ function writePVD(filePath::String, trian::Triangulation, sol; append=false)
     end
 end
 
-# function get_FSI_triangulations(models,coupling)
-#   trian = Triangulation(models[:Ω])
-#   trian_s = Triangulation(models[:Ωs])
-#   trian_f = Triangulation(models[:Ωf])
-#   function Γi_triangulation(coupling)
-#     if typeof(coupling) == WeakForms.Coupling{:weak}
-#       InterfaceTriangulation(models[:Ωf],models[:Ωs])
-#     else
-#       BoundaryTriangulation(models[:Ωf],tags="interface")
-#     end
-#   end
-#   trian_Γi = Γi_triangulation(coupling)
-#   Dict(:Ω=>trian, :Ωs=>trian_s, :Ωf=>trian_f, :Γi=>trian_Γi)
-# end
-
 function get_FSI_measures(Tₕ,order)
   degree = 2*order
   bdegree = 2*order
@@ -57,18 +42,13 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
 
   # Compute cell area (auxiliar quantity for mesh motion eq.)
   α_m = m_params[:α]
-  if( m_params[:w_strategy] == "volume")
-    # volf = get_cell_measure(Tₕ[:Ωf])
-    # vols = get_cell_measure(Tₕ[:Ωs])
-    # α_Ωf = α_m * reindex(volf,Tₕ[:Ωf])
-    # α_Ωs = α_m * reindex(vols,Tₕ[:Ωs])
+  if m_params[:w_strategy] == "volume"
     α_Ωf = α_m * get_cell_measure(Tₕ[:Ωf])
-    α_Ωs = α_m * get_cell_measure(Tₕ[:Ωs])
-    # α_Ωs = α_Ωf
+    α_Ωs = α_m * get_cell_measure(Tₕ[:Ωs],Tₕ[:Ω])  # not sure why I need to reindex here...
     if ( typeof(coupling) == WeakForms.Coupling{:weak} )
-       α_Γi = lazy_map(Reindex(α_Ωf),get_cell_to_bgcell(Tₕ[:Γi].⁺))
+      α_Γi = α_m * get_cell_measure(Tₕ[:Γi].⁺)
     else
-      α_Γi = lazy_map(Reindex(α_Ωf),get_cell_to_bgcell(Tₕ[:Γi]))
+      α_Γi = α_m * get_cell_measure(Tₕ[:Γi])
     end
   else
     α_Ωf = α_m; α_Ωs = α_m; α_Γi = α_m
@@ -79,8 +59,6 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
     dim = num_cell_dims(Tₕ[:Γi])
     h_Γfs = get_array(∫(1)dTₕ[:Γi])
     hΓᵢ = CellField( lazy_map(h->(h.^(-dim)),h_Γfs), Tₕ[:Γi])
-    # trian_boundary_Γi = get_left_boundary(Tₕ[:Γi])
-    # hΓᵢ = reindex(cell_measure(trian_boundary_Γi,Tₕ[:Ω]),trian_boundary_Γi)
   else
     hΓᵢ = 0.0
   end

@@ -93,7 +93,7 @@ function jacobian_t_Ωf(strategy::MeshStrategy,x,dxt,y,params,dΩ)
   ρ = params[:ρ]
   da_NS_ALE_dxt(x,dxt,y,ρ,dΩ)
 end
-function fluid_jacobian_t_Ωf(strategy::MeshStrategy{:biharmonic},x,dxt,y,params,dΩ)
+function jacobian_t_Ωf(strategy::MeshStrategy{:biharmonic},x,dxt,y,params,dΩ)
   _x = (x[2],x[3],x[4])
   _dxt = (dxt[2],dxt[3],dxt[4])
   _y = (y[2],y[3],y[4])
@@ -117,7 +117,7 @@ function residual_Ωs(st::MeshStrategy{:biharmonic},t,x,y,params,dΩ)
   _y = (y[2],y[3])
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]; fₘ = params[:fu]; fᵤ = params[:fu]; fᵥ = params[:fv]
-  a_mesh(st,x,y,α,α,dΩ) + a_PFE(_x,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
+  a_mesh(st,x,y,0.0,α,dΩ) + a_PFE(_x,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
 end
 # Spatial Jacobian
 function jacobian_Ωs(st::MeshStrategy,x,dx,y,params,dΩ)
@@ -134,7 +134,7 @@ function jacobian_Ωs(st::MeshStrategy{:biharmonic},x,dx,y,params,dΩ)
   _y = (y[2],y[3])
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]
-  a_mesh(st,dx,y,α,α,dΩ) + da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
+  a_mesh(st,dx,y,0.0,α,dΩ) + da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
 end
 # Temporal Jacobian
 function jacobian_t_Ωs(st::MeshStrategy,x,dxt,y,params,dΩ)
