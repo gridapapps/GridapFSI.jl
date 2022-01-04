@@ -43,7 +43,7 @@ function get_FSI_operator(X,Y,coupling,strategy,Tₕ,dTₕ,params)
   # Compute cell area (auxiliar quantity for mesh motion eq.)
   α_m = m_params[:α]
   if m_params[:w_strategy] == "volume"
-    α_Ωf = α_m * get_cell_measure(Tₕ[:Ωf])
+    α_Ωf = α_m * get_cell_measure(Tₕ[:Ωf],Tₕ[:Ω])
     α_Ωs = α_m * get_cell_measure(Tₕ[:Ωs],Tₕ[:Ω])  # not sure why I need to reindex here...
     if ( typeof(coupling) == WeakForms.Coupling{:weak} )
       α_Γi = α_m * get_cell_measure(Tₕ[:Γi].⁺)
