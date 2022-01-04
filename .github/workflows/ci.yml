@@ -69,7 +69,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - run: |
           julia --color=yes --project=. --check-bounds=yes --depwarn=error -e '
-            using Pkg; Pkg.instantiate()'
+            using Pkg; Pkg.instantiate(); Pkg.add(GridapODEs#master)'
       - run: |
           julia --color=yes --project=. --check-bounds=yes --depwarn=error -e '
             (1,) .== 1; cd("test"); include("runtests.jl")'
