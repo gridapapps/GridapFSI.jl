@@ -215,21 +215,21 @@ function get_boundary_conditions(
   )
   boundary_conditions = (
     # Tags
-    FSI_Vw_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
-    FSI_Vu_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
-    FSI_Vv_f_tags = ["inlet", "noSlip", "cylinder"],
+    FSI_Vw_f_tags = ["inlet", "noSlip", "cylinder","outlet","fixed"],
+    FSI_Vu_f_tags = ["inlet", "noSlip", "cylinder","outlet","fixed"],
+    FSI_Vv_f_tags = ["inlet", "noSlip", "cylinder","fixed"],
     FSI_Vu_s_tags = ["fixed"],
     FSI_Vv_s_tags = ["fixed"],
-    ST_Vu_tags = ["inlet", "noSlip", "cylinder","interface","outlet"],
-    ST_Vv_tags = ["inlet", "noSlip", "cylinder","interface"],
+    ST_Vu_tags = ["inlet", "noSlip", "cylinder","interface","outlet","fixed"],
+    ST_Vv_tags = ["inlet", "noSlip", "cylinder","interface","fixed"],
     # Values,
-    FSI_Vw_f_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
-    FSI_Vu_f_values = [u_noSlip, u_noSlip, u_noSlip, u_noSlip],
-    FSI_Vv_f_values = [u_in, u_noSlip, u_noSlip],
+    FSI_Vw_f_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    FSI_Vu_f_values = [u_noSlip, u_noSlip, u_noSlip, u_noSlip, u_noSlip],
+    FSI_Vv_f_values = [u_in, u_noSlip, u_noSlip, u_noSlip],
     FSI_Vu_s_values = [u_noSlip],
     FSI_Vv_s_values = [u_noSlip],
-    ST_Vu_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
-    ST_Vv_values = [u_in(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    ST_Vu_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    ST_Vv_values = [u_in(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
   )
 end
 
