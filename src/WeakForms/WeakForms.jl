@@ -105,28 +105,38 @@ end
 # FSI (solid)
 # ===========
 # Residual
+residual_Ωs(t,x,y,ρ,λ,μ,fᵤ,fᵥ,dΩ) = a_PFE(x,y,ρ,λ,μ,dΩ) - l_PFE(y,fᵤ,fᵥ,t,dΩ)
 function residual_Ωs(st::MeshStrategy,t,x,y,params,dΩ)
   _x = (x[1],x[2])
   _y = (y[1],y[2])
   λ,μ = lame_parameters(params[:E],params[:ν])
   ρ = params[:ρ]; fᵤ = params[:fu]; fᵥ = params[:fv]
-  a_PFE(_x,_y,ρ,λ,μ,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
+  residual_Ωs(t,_x,_y,ρ,λ,μ,fᵤ,fᵥ,dΩ)
 end
 function residual_Ωs(st::MeshStrategy{:biharmonic},t,x,y,params,dΩ)
   _x = (x[2],x[3])
   _y = (y[2],y[3])
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]; fₘ = params[:fu]; fᵤ = params[:fu]; fᵥ = params[:fv]
-  a_mesh(st,x,y,α,α,dΩ) + a_PFE(_x,_y,ρ,λ,μ,dΩ) - l_mesh(st,y,fₘ,t,dΩ) - l_PFE(_y,fᵤ,fᵥ,t,dΩ)
+  a_mesh(st,x,y,α,α,dΩ) - l_mesh(st,y,fₘ,t,dΩ) + residual_Ωs(t,_x,_y,ρ,λ,μ,fᵤ,fᵥ,dΩ)
+end
+residual_Ωs_weak(st::MeshStrategy,t,x,y,params,dΩ) = residual_Ωs(st,t,x,y,params,dΩ)
+function residual_Ωs_weak(st::MeshStrategy{:biharmonic},t,x,y,params,dΩ)
+  _x = (x[2],x[3])
+  _y = (y[2],y[3])
+  λ,μ = lame_parameters(params[:E],params[:ν])
+  ρ = params[:ρ]; fᵤ = params[:fu]; fᵥ = params[:fv]
+  residual_Ωs(t,_x,_y,ρ,λ,μ,fᵤ,fᵥ,dΩ)
 end
 # Spatial Jacobian
+jacobian_Ωs(x,dx,y,ρ,λ,μ,dΩ) = da_PFE_dx(x,dx,y,ρ,λ,μ,dΩ)
 function jacobian_Ωs(st::MeshStrategy,x,dx,y,params,dΩ)
   _x = (x[1],x[2])
   _dx = (dx[1],dx[2])
   _y = (y[1],y[2])
   λ,μ = lame_parameters(params[:E],params[:ν])
   ρ = params[:ρ]
-  da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
+  jacobian_Ωs(_x,_dx,_y,ρ,λ,μ,dΩ)
 end
 function jacobian_Ωs(st::MeshStrategy{:biharmonic},x,dx,y,params,dΩ)
   _x = (x[2],x[3])
@@ -134,7 +144,16 @@ function jacobian_Ωs(st::MeshStrategy{:biharmonic},x,dx,y,params,dΩ)
   _y = (y[2],y[3])
   λ,μ = lame_parameters(params[:E],params[:ν])
   α = params[:α]; ρ = params[:ρ]
-  a_mesh(st,dx,y,α,α,dΩ) + da_PFE_dx(_x,_dx,_y,ρ,λ,μ,dΩ)
+  a_mesh(st,dx,y,α,α,dΩ) + jacobian_Ωs(_x,_dx,_y,ρ,λ,μ,dΩ)
+end
+jacobian_Ωs_weak(st::MeshStrategy,x,dx,y,params,dΩ) = jacobian_Ωs(st,x,dx,y,params,dΩ)
+function jacobian_Ωs_weak(st::MeshStrategy{:biharmonic},x,dx,y,params,dΩ)
+  _x = (x[2],x[3])
+  _dx = (dx[2],dx[3])
+  _y = (y[2],y[3])
+  λ,μ = lame_parameters(params[:E],params[:ν])
+  α = params[:α]; ρ = params[:ρ]
+  jacobian_Ωs(_x,_dx,_y,ρ,λ,μ,dΩ)
 end
 # Temporal Jacobian
 function jacobian_t_Ωs(st::MeshStrategy,x,dxt,y,params,dΩ)
@@ -220,11 +239,22 @@ function residual_Ωs(st::MeshStrategy,c::Coupling,t,x,y,params,dΩ)
   yf = get_solid_vars_Ω(st,c,y)
   residual_Ωs(st,t,xf,yf,params,dΩ)
 end
+function residual_Ωs(st::MeshStrategy,c::Coupling{:weak},t,x,y,params,dΩ)
+  xf = get_solid_vars_Ω(st,c,x)
+  yf = get_solid_vars_Ω(st,c,y)
+  residual_Ωs_weak(st,t,xf,yf,params,dΩ)
+end
 function jacobian_Ωs(st::MeshStrategy,c::Coupling,t,x,dx,y,params,dΩ)
   xf = get_solid_vars_Ω(st,c,x)
   dxf = get_solid_vars_Ω(st,c,dx)
   yf = get_solid_vars_Ω(st,c,y)
   jacobian_Ωs(st,xf,dxf,yf,params,dΩ)
+end
+function jacobian_Ωs(st::MeshStrategy,c::Coupling{:weak},t,x,dx,y,params,dΩ)
+  xf = get_solid_vars_Ω(st,c,x)
+  dxf = get_solid_vars_Ω(st,c,dx)
+  yf = get_solid_vars_Ω(st,c,y)
+  jacobian_Ωs_weak(st,xf,dxf,yf,params,dΩ)
 end
 function jacobian_t_Ωs(st::MeshStrategy,c::Coupling,t,x,dxt,y,params,dΩ)
   xf = get_solid_vars_Ω(st,c,x)
