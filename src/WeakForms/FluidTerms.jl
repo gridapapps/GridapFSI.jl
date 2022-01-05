@@ -12,11 +12,11 @@ end
 
 # Navier-Stokes
 # =============
-function a_NS((v,p),(vt,pt),(φ,q),μ,ρ,dΩ)
-  ∫( ρ*(ϕ ⋅ vt) + ρ*( conv∘(v,∇(v))) + ε(φ) ⊙ σᵥ_Ωf(μ,v) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
+function a_NS((v,p),(φ,q),μ,ρ,dΩ)
+  ∫( ρ*(ϕ ⋅ ∂t(v)) + ρ*( conv∘(v,∇(v))) + ε(φ) ⊙ σᵥ_Ωf(μ,v) - (∇⋅φ) * p + q * (∇⋅v) )dΩ
 end
 function da_NS_dx((v,p),(dv,dp),(φ,q),μ,ρ,dΩ)
-  ∫( 0.0*ρ*(ϕ ⋅ dv) + ρ*( dconv∘(dv,∇(dv),v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf(μ)∘(ε(dv))) - (∇⋅φ) * dp + q * (∇⋅dv) )dΩ
+  ∫( ρ*( dconv∘(dv,∇(dv),v,∇(v))) + ε(φ) ⊙ (σᵥ_Ωf(μ)∘(ε(dv))) - (∇⋅φ) * dp + q * (∇⋅dv) )dΩ
 end
 function da_NS_dxt((dvt,dpt),(φ,q),ρ,dΩ)
   ∫( ρ*(ϕ ⋅ dvt) )dΩ
@@ -27,27 +27,27 @@ l_NS((φ,q),f,dΩ) = ∫( φ⋅f )dΩ
 # Navier-Stokes ALE
 # =================
 # LHS terms
-function a_NS_ALE((u,v,p),(ut,vt,pt),(ϕ,φ,q),μ,ρ,dΩ)
-  ∫( φ ⋅ ( (J∘∇(u)) * ρ * vt ) +
-     φ ⋅ ( (J∘∇(u)) * ρ * (conv∘( (Finv∘∇(u))⋅(v-ut), ∇(v) ) )) +
+function a_NS_ALE((u,v,p),(ϕ,φ,q),μ,ρ,dΩ)
+  ∫( φ ⋅ ( (J∘∇(u)) * ρ * ∂t(v) ) +
+     φ ⋅ ( (J∘∇(u)) * ρ * (conv∘( (Finv∘∇(u))⋅(v-∂t(u)), ∇(v) ) )) +
      ∇(φ) ⊙ Pᵥ_Ωf(μ,u,v) +
      (∇⋅φ) * Pₚ_Ωf(u,p) +
      q * ((J∘∇(u)) * (∇(v) ⊙ (FinvT∘∇(u)))) )dΩ
 end
-function a_NS_ALE_ΓD((u,v,p),(ut,vt,pt),(ϕ,φ,q),t,n,μ,γ,h,dΓ)
-  ∫( 0.0*(ϕ⋅u) + γ*μ/h*(ϕ⋅ut) + γ*μ/h*(φ⋅v) +
+function a_NS_ALE_ΓD((u,v,p),(ϕ,φ,q),t,n,μ,γ,h,dΓ)
+  ∫( γ*μ/h*(ϕ⋅∂t(u)) + γ*μ/h*(φ⋅v) +
     -(φ ⋅ (n⋅Pᵥ_Ωf(μ,u,v))) - (φ ⋅ n)*Pₚ_Ωf(u,p) +
     (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ v + (n*Pₚ_Ωf(u,q)) ⋅ v )dΓ
 end
 
 # LHS linearized terms
-function da_NS_ALE_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
-  ∫( φ ⋅ ( (dJ∘(∇(u),∇(du))) * ρ * vt ) +
-     φ ⋅ ( ( (dJ∘(∇(u),∇(du))) * ρ * (conv∘( (Finv∘∇(u))⋅(v-ut), ∇(v))) ) +
-           ( (J∘∇(u)) * ρ * (conv∘( (dFinv∘(∇(u),∇(du)))⋅(v-ut), ∇(v))) ) ) +
+function da_NS_ALE_dx((u,v,p),(du,dv,dp),(ϕ,φ,q),μ,ρ,dΩ)
+  ∫( φ ⋅ ( (dJ∘(∇(u),∇(du))) * ρ * ∂t(v) ) +
+     φ ⋅ ( ( (dJ∘(∇(u),∇(du))) * ρ * (conv∘( (Finv∘∇(u))⋅(v-∂t(u)), ∇(v))) ) +
+           ( (J∘∇(u)) * ρ * (conv∘( (dFinv∘(∇(u),∇(du)))⋅(v-∂t(u)), ∇(v))) ) ) +
      ∇(φ) ⊙ dPᵥ_Ωf_du(μ,u,du,v) +
      (∇⋅φ) * dPₚ_Ωf_du(u,du,p) +
-     φ ⋅ ( (J∘∇(u)) * ρ * (dconv∘( (Finv∘∇(u))⋅dv, ∇(dv), (Finv∘∇(u))⋅(v-ut) , ∇(v))) ) +
+     φ ⋅ ( (J∘∇(u)) * ρ * (dconv∘( (Finv∘∇(u))⋅dv, ∇(dv), (Finv∘∇(u))⋅(v-∂t(u)) , ∇(v))) ) +
      ∇(φ) ⊙ Pᵥ_Ωf(μ,u,dv) +
      (∇⋅φ) * dPₚ_Ωf_dp(u,dp) +
      q * ( (dJ∘(∇(u),∇(du))) * (∇(v) ⊙ (FinvT∘∇(u))) +
@@ -58,10 +58,10 @@ function da_NS_ALE_dxt((u,v,p),(dut,dvt,dpt),(ϕ,φ,q),ρ,dΩ)
   ∫( - φ ⋅ ( (J∘∇(u)) * ρ * (conv∘((Finv∘∇(u))⋅dut, ∇(v))) ) +
      φ ⋅ ( (J∘∇(u)) * ρ * dvt ) )dΩ
 end
-function da_NS_ALE_ΓD_dx((u,v,p),(ut,vt,pt),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ)
+function da_NS_ALE_ΓD_dx((u,v,p),(du,dv,dp),(ϕ,φ,q),n,μ,γ,h,dΓ)
   dP_tensor(u,du,v,dv,p) = dPᵥ_Ωf_du(μ,u,du,v) + Pᵥ_Ωf_dv(μ,u,dv) + dPₚ_Ωf_du(u,du,p)
   dP_scalar(u,dp) = Pₚ_Ωf_dp(u,dp)
-  ∫( 0.0*(ϕ⋅du) + γ*μ/h*(φ⋅dv) +
+  ∫( γ*μ/h*(φ⋅dv) +
      - φ ⋅ ( n⋅dP_tensor(u,du,v,dv,p) + n*dP_scalar(u,dp) ) +
      (n⋅Pᵥ_Ωf(μ,u,φ)) ⋅ dv + (n⋅dPᵥ_Ωf_du(μ,u,du,φ)) ⋅ v +
      (n*Pₚ_Ωf(u,q)) ⋅ dv + (n⋅dPₚ_Ωf_du(u,du,q)) ⋅ v )dΓ

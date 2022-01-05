@@ -63,16 +63,16 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
   F(t) = x -> ∇(u(t))(x) + I
   J(t) = x -> det(F(t))(x)
   E(t) = x -> 0.5 * ((F(t)(x)')⋅F(t)(x) - I)
-  (λ_s, μ_s) = WeakForms.lame_parameters(E_s,ν_s)
-  (λ_m, μ_m) = WeakForms.lame_parameters(E_m,ν_m)
+  (λ_s, μ_s) = lame_parameters(E_s,ν_s)
+  (λ_m, μ_m) = lame_parameters(E_m,ν_m)
   S_SV(t) = x -> 2*μ_s*E(t)(x) + λ_s*tr(E(t)(x))*I
   fv_ST_Ωf(t) = x -> - μ_f*Δ(v(t))(x) + ∇(p(t))(x)
   function fu_closure(t,strategy)
-    fu = if typeof(strategy) == WeakForms.MeshStrategy{:laplacian}
+    fu = if typeof(strategy) == MeshStrategy{:laplacian}
       x -> - α_m * Δ(u(t))(x)
-    elseif typeof(strategy) == WeakForms.MeshStrategy{:linearElasticity}
+    elseif typeof(strategy) == MeshStrategy{:linearElasticity}
       x -> - μ_m * Δ(u(t))(x)
-    elseif typeof(strategy) == WeakForms.MeshStrategy{:neoHookean}
+    elseif typeof(strategy) == MeshStrategy{:neoHookean}
       x -> - μ_m * Δ(u(t))(x)
     else
       @notimplemented("The soruce term for $strategy strategy is not implemented")
@@ -89,8 +89,10 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
   println("Defining discrete model")
   domain = (-1,1,-1,1)
   partition = (n_m,n_m)
-  model = CartesianDiscreteModel(domain,partition)
-  trian = Triangulation(model)
+  𝒯 = CartesianDiscreteModel(domain,partition)
+  Ω = Interior(𝒯)
+
+  # Solid domain
   R = 0.5
   xc = 0.0
   yc = 0.0
@@ -100,34 +102,30 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
     d = (x[1]-xc)^2 + (x[2]-yc)^2 - R^2
     d < 1.0e-8
   end
-  oldcell_to_coods = get_cell_coordinates(trian)
+  oldcell_to_coods = get_cell_coordinates(Ω)
   oldcell_to_is_in = collect1d(lazy_map(is_in,oldcell_to_coods))
   incell_to_cell = findall(oldcell_to_is_in)
   outcell_to_cell = findall(collect(Bool, .! oldcell_to_is_in))
-  model_solid = DiscreteModel(model,incell_to_cell)
-  model_fluid = DiscreteModel(model,outcell_to_cell)
-  models = Dict(:Ω => model, :Ωf => model_fluid, :Ωs => model_solid)
-
-  # Build fluid-solid interface labelling
-  println("Defining Fluid-Solid interface")
-  labeling = get_face_labeling(model_fluid)
-  new_entity = num_entities(labeling) + 1
-  topo = get_grid_topology(model_fluid)
-  D = num_cell_dims(model_fluid)
-  for d in 0:D-1
-    fluid_boundary_mask = collect(Bool,get_isboundary_face(topo,d))
-    fluid_outer_boundary_mask = get_face_mask(labeling,"boundary",d)
-    fluid_interface_mask = collect(Bool,fluid_boundary_mask .!= fluid_outer_boundary_mask)
-    dface_list = findall(fluid_interface_mask)
-    for face in dface_list
-      labeling.d_to_dface_to_entity[d+1][face] = new_entity
-    end
-  end
-  add_tag!(labeling,"interface",[new_entity])
 
   # Triangulations
   println("Defining triangulations")
-  Tₕ = get_FSI_triangulations(models,coupling)
+  Ωs = Interior(Ω,incell_to_cell)
+  Ωf = Interior(Ω,outcell_to_cell)
+  Γi = InterfaceTriangulation(Ωf,Ωs)
+  Γi_mask = Int64.(Γi.⁺.glue.face_to_bgface)
+  if typeof(coupling) == Coupling{:strong}
+    Γi = Γi.⁺
+  end
+  Tₕ = Dict(:Ω => Ω, :Ωf => Ωf, :Ωs => Ωs, :Γi=>Γi)
+
+  # Add interface tag
+  labels = get_face_labeling(𝒯)
+  new_entity = num_entities(labels) + 1
+  D = num_cell_dims(𝒯)
+  for face in Γi_mask
+    labels.d_to_dface_to_entity[D][face] = new_entity
+  end
+  add_tag!(labels,"interface",[new_entity])
 
   # Quadratures
   println("Defining quadratures")
@@ -136,7 +134,7 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
 
   # Test FE Spaces
   println("Defining FE spaces")
-  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,models,order,bconds,constraint=:zeromean)
+  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,Tₕ,order,bconds,constraint=:zeromean)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
@@ -216,9 +214,8 @@ function execute(problem::FSIProblem{:analytical};kwargs...)
   ftol = 1.0e-10,
   iterations = 50
   )
-  odes =  ThetaMethod(nls, dt, 0.5)
-  solver = TransientFESolver(odes)
-  xht = solve(solver, op_FSI, xh0, t0, tf)
+  ode_solver =  ThetaMethod(nls, dt, 0.5)
+  xht = solve(ode_solver, op_FSI, xh0, t0, tf)
   end
 
   # Compute outputs

@@ -55,11 +55,11 @@ function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
 
   # Mesh strategy
   strategyName = _get_kwarg(:strategy,kwargs,"laplacian")
-  strategy = WeakForms.MeshStrategy{Symbol(strategyName)}()
+  strategy = MeshStrategy{Symbol(strategyName)}()
 
   # Fluid-Solid coupling type
   couplingName = _get_kwarg(:coupling,kwargs,"strong")
-  coupling = WeakForms.Coupling{Symbol(couplingName)}()
+  coupling = Coupling{Symbol(couplingName)}()
 
   # Define BC functions
   println("Defining Boundary conditions")
@@ -81,14 +81,18 @@ function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
   # Discrete model
   println("Defining discrete model")
   modelName = _get_kwarg(:model,kwargs,"../models/elasticFlag.json")
-  model = DiscreteModelFromFile(modelName)
-  model_solid = DiscreteModel(model,tags="solid")
-  model_fluid = DiscreteModel(model,tags="fluid")
-  models = Dict(:Ω => model, :Ωf => model_fluid, :Ωs => model_solid)
+  𝒯 = DiscreteModelFromFile(modelName)
 
   # Triangulations
   println("Defining triangulations")
-  Tₕ = get_FSI_triangulations(models,coupling)
+  Ω = Interior(𝒯)
+  Ωs = Interior(𝒯,tags="solid")
+  Ωf = Interior(𝒯,tags="fluid")
+  Γi = InterfaceTriangulation(Ωf,Ωs)
+  if typeof(coupling) == Coupling{:strong}
+    Γi = Γi.⁺
+  end
+  Tₕ = Dict(:Ω => Ω, :Ωf => Ωf, :Ωs => Ωs, :Γi=>Γi)
 
   # Quadratures
   println("Defining quadratures")
@@ -97,7 +101,7 @@ function execute(problem::FSIProblem{:elasticFlag}; kwargs...)
 
   # Test FE Spaces
   println("Defining FE spaces")
-  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,models,order,bconds)
+  Y_ST, X_ST, Y_FSI, X_FSI = get_FE_spaces(strategy,coupling,Tₕ,order,bconds)
 
   # Stokes problem for initial solution
   println("Defining Stokes operator")
@@ -162,9 +166,8 @@ nls = NLSolver(
   ftol = 1.0e-6,
   iterations = 50
   )
-odes =  ThetaMethod(nls, dt, θ)
-solver = TransientFESolver(odes)
-xht = solve(solver, op_FSI, xh0, t0, tf)
+ode_solver =  ThetaMethod(nls, dt, θ)
+xht = solve(ode_solver, op_FSI, xh0, t0, tf)
 end
 
 # Compute outputs
@@ -178,14 +181,14 @@ out_params = Dict{Symbol,Any}(
   :filePath=>filePath,
   :is_vtk=>is_vtk,
   )
-output = computeOutputs(xh0,xht,coupling,strategy,models,Tₕ,dTₕ,out_params)
+output = computeOutputs(xh0,xht,coupling,strategy,Tₕ,dTₕ,out_params)
 
 end
 
 function get_boundary_conditions(
   problem::FSIProblem{:elasticFlag},
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:strong},
+  strategy::MeshStrategy,
+  coupling::Coupling{:strong},
   u_in,
   u_noSlip
   )
@@ -205,32 +208,39 @@ end
 
 function get_boundary_conditions(
   problem::FSIProblem{:elasticFlag},
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:weak},
+  strategy::MeshStrategy,
+  coupling::Coupling{:weak},
   u_in,
   u_noSlip
   )
   boundary_conditions = (
     # Tags
-    FSI_Vw_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
-    FSI_Vu_f_tags = ["inlet", "noSlip", "cylinder","outlet"],
-    FSI_Vv_f_tags = ["inlet", "noSlip", "cylinder"],
+    FSI_Vw_f_tags = ["inlet", "noSlip", "cylinder","outlet","fixed"],
+    FSI_Vu_f_tags = ["inlet", "noSlip", "cylinder","outlet","fixed"],
+    FSI_Vv_f_tags = ["inlet", "noSlip", "cylinder","fixed"],
     FSI_Vu_s_tags = ["fixed"],
     FSI_Vv_s_tags = ["fixed"],
-    ST_Vu_tags = ["inlet", "noSlip", "cylinder","interface","outlet"],
-    ST_Vv_tags = ["inlet", "noSlip", "cylinder","interface"],
+    ST_Vu_tags = ["inlet", "noSlip", "cylinder","interface","outlet","fixed"],
+    ST_Vv_tags = ["inlet", "noSlip", "cylinder","interface","fixed"],
     # Values,
-    FSI_Vw_f_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
-    FSI_Vu_f_values = [u_noSlip, u_noSlip, u_noSlip, u_noSlip],
-    FSI_Vv_f_values = [u_in, u_noSlip, u_noSlip],
+    FSI_Vw_f_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    FSI_Vu_f_values = [u_noSlip, u_noSlip, u_noSlip, u_noSlip, u_noSlip],
+    FSI_Vv_f_values = [u_in, u_noSlip, u_noSlip, u_noSlip],
     FSI_Vu_s_values = [u_noSlip],
     FSI_Vv_s_values = [u_noSlip],
-    ST_Vu_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
-    ST_Vv_values = [u_in(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    ST_Vu_values = [u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
+    ST_Vv_values = [u_in(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0), u_noSlip(0.0)],
   )
 end
 
-function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms.MeshStrategy,models,Tₕ,quads,params)
+function computeOutputs(
+  xh0,
+  xht,
+  coupling::Coupling,
+  strategy::MeshStrategy,
+  Tₕ,
+  quads,
+  params)
 
   # Unpack parameters
   bdegree = params[:bdegree]
@@ -241,21 +251,21 @@ function computeOutputs(xh0,xht,coupling::WeakForms.Coupling,strategy::WeakForms
   θ = params[:θ]
   filePath = params[:filePath]
   is_vtk = params[:is_vtk]
-  if( typeof(strategy) == WeakForms.MeshStrategy{:biharmonic} )
+  if( typeof(strategy) == MeshStrategy{:biharmonic} )
     uvpindex = [2,3,4]
   else
     uvpindex = [1,2,3]
   end
 
   ## Surface triangulation
-  Γc = BoundaryTriangulation(models[:Ω], tags="cylinder")
+  Γc = BoundaryTriangulation(Tₕ[:Ω], tags="cylinder")
   dΓc = Measure(Γc, bdegree)
   n_Γc = get_normal_vector(Γc)
 
   # Aux function
   traction_boundary(n,u,v,p) = n ⋅ WeakForms.Pᵥ_Ωf(μ,u,v)  + WeakForms.Pₚ_Ωf(u,p) * n
   function traction_closure(coupling,n,u,v,p)
-    if typeof(coupling) == WeakForms.Coupling{:weak}
+    if typeof(coupling) == Coupling{:weak}
       traction_boundary(n,u,v,p).⁺
     else
       traction_boundary(n,u,v,p)

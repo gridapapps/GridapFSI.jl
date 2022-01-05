@@ -1,7 +1,7 @@
 function get_FE_spaces(
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:strong},
-  models,
+  strategy::MeshStrategy,
+  coupling::Coupling{:strong},
+  Tₕ,
   order,
   bconds;
   constraint=nothing)
@@ -11,11 +11,11 @@ function get_FE_spaces(
   reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 
   # Test FE Spaces
-  Vu_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vv_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
-  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
+  Vu_FSI = TestFESpace(Tₕ[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
+  Vv_FSI = TestFESpace(Tₕ[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
+  Vu_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(Tₕ[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
@@ -34,9 +34,9 @@ function get_FE_spaces(
 end
 
 function get_FE_spaces(
-  strategy::WeakForms.MeshStrategy{:biharmonic},
-  coupling::WeakForms.Coupling{:strong},
-  models,
+  strategy::MeshStrategy{:biharmonic},
+  coupling::Coupling{:strong},
+  Tₕ,
   order,
   bconds;
   constraint=nothing)
@@ -46,13 +46,13 @@ function get_FE_spaces(
   reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 
   # Test FE Spaces
-  Vw_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vu_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
-  Vv_FSI = TestFESpace(models[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
-  Vw_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
+  Vw_FSI = TestFESpace(Tₕ[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
+  Vu_FSI = TestFESpace(Tₕ[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_tags])
+  Vv_FSI = TestFESpace(Tₕ[:Ω], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_tags])
+  Vw_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vu_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(Tₕ[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
@@ -73,9 +73,9 @@ function get_FE_spaces(
 end
 
 function get_FE_spaces(
-  strategy::WeakForms.MeshStrategy,
-  coupling::WeakForms.Coupling{:weak},
-  models,
+  strategy::MeshStrategy,
+  coupling::Coupling{:weak},
+  Tₕ,
   order,
   bconds;
   constraint=nothing)
@@ -85,13 +85,13 @@ function get_FE_spaces(
   reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 
   # Test FE Spaces
-  Vu_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_f_tags])
-  Vv_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_f_tags])
-  Vu_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_s_tags])
-  Vv_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_s_tags])
-  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
+  Vu_FSI_f = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_f_tags])
+  Vv_FSI_f = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_f_tags])
+  Vu_FSI_s = TestFESpace(Tₕ[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_s_tags])
+  Vv_FSI_s = TestFESpace(Tₕ[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_s_tags])
+  Vu_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(Tₕ[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uu_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])
@@ -112,9 +112,9 @@ function get_FE_spaces(
 end
 
 function get_FE_spaces(
-  strategy::WeakForms.MeshStrategy{:biharmonic},
-  coupling::WeakForms.Coupling{:weak},
-  models,
+  strategy::MeshStrategy{:biharmonic},
+  coupling::Coupling{:weak},
+  Tₕ,
   order,
   bconds;
   constraint=nothing)
@@ -124,15 +124,15 @@ function get_FE_spaces(
   reffeₚ = ReferenceFE(lagrangian,Float64,order-1)
 
   # Test FE Spaces
-  Vw_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vw_f_tags])
-  Vu_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_f_tags])
-  Vv_FSI_f = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_f_tags])
-  Vu_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_s_tags])
-  Vv_FSI_s = TestFESpace(models[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_s_tags])
-  Vw_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vu_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
-  Vv_ST = TestFESpace(models[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
-  Q = TestFESpace(models[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
+  Vw_FSI_f = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vw_f_tags])
+  Vu_FSI_f = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_f_tags])
+  Vv_FSI_f = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_f_tags])
+  Vu_FSI_s = TestFESpace(Tₕ[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vu_s_tags])
+  Vv_FSI_s = TestFESpace(Tₕ[:Ωs], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:FSI_Vv_s_tags])
+  Vw_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vu_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vu_tags])
+  Vv_ST = TestFESpace(Tₕ[:Ωf], reffeᵤ, conformity=:H1, dirichlet_tags=bconds[:ST_Vv_tags])
+  Q = TestFESpace(Tₕ[:Ωf], reffeₚ, constraint=constraint, conformity=:C0)
 
   # Trial FE Spaces
   Uw_ST = TrialFESpace(Vu_ST,bconds[:ST_Vu_values])

@@ -19,6 +19,13 @@ using Test
 # Julia modules extended in the drivers
 import GridapODEs.TransientFETools: ∂t
 
+using .WeakForms: lame_parameters
+using .WeakForms: MeshStrategy
+using .WeakForms: Coupling
+using .WeakForms: residual_Ωf, residual_Ωs, residual_Γi
+using .WeakForms: jacobian_Ωf, jacobian_Ωs, jacobian_Γi
+using .WeakForms: jacobian_t_Ωf, jacobian_t_Ωs
+
 export Problem
 export FSIProblem
 export PotentialFlowProblem
